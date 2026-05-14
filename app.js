@@ -400,6 +400,7 @@ function applyFilter() {
   renderKeyCost(amountRows);
   renderKeyTokens(amountRows);
   renderDailyCost(allCostRows); // cost.csv has no per-key data
+  requestAnimationFrame(() => charts.forEach(c => c.resize()));
 }
 
 /* ---- main handler ---- */
