@@ -21,12 +21,12 @@ const TYPE_LABELS = {
 const TOKEN_TYPES = ['output_tokens', 'input_cache_hit_tokens', 'input_cache_miss_tokens'];
 
 /* ---- DOM refs ---- */
-const dropZone  = document.getElementById('dropZone');
-const errorEl   = document.getElementById('error');
-const loadingEl = document.getElementById('loading');
-const contentEl = document.getElementById('content');
-const fileNameEl= document.getElementById('fileName');
-const summaryEl = document.getElementById('summary');
+const dropZone   = document.getElementById('dropZone');
+const errorEl    = document.getElementById('error');
+const loadingEl  = document.getElementById('loading');
+const contentEl  = document.getElementById('content');
+const fileNameEl = document.getElementById('fileName');
+const summaryEl  = document.getElementById('summary');
 const keySummaryEl = document.getElementById('keySummary');
 
 const fileInput = document.createElement('input');
@@ -94,9 +94,23 @@ function groupBy(arr, keys) {
 }
 
 function clearCharts() {
-  charts.forEach(c => c.destroy());
+  charts.forEach(c => c.dispose());
   charts = [];
 }
+
+function createChart(domId) {
+  const dom = document.getElementById(domId);
+  if (!dom) return null;
+  const existing = echarts.getInstanceByDom(dom);
+  if (existing) existing.dispose();
+  const chart = echarts.init(dom);
+  charts.push(chart);
+  return chart;
+}
+
+window.addEventListener('resize', () => {
+  charts.forEach(c => c.resize());
+});
 
 function computeCost(rows) {
   return rows.reduce((sum, r) => {
@@ -160,156 +174,178 @@ function escapeHtml(str) {
   return str.replace(/[&<>"']/g, c => map[c]);
 }
 
-/* ---- chart: daily cost by model (cost.csv) ---- */
+/* ---- chart: daily cost by model (cost.csv, stacked bar) ---- */
 function renderDailyCost(costRows) {
+  const chart = createChart('dailyCostChart');
+  if (!chart) return;
+
   const byDate = groupBy(costRows, ['utc_date']);
   const dates = [...byDate.keys()].sort();
   const models = [...new Set(costRows.map(r => r.model))].sort().reverse();
   const colorMap = {};
   models.forEach((m, i) => colorMap[m] = MODEL_COLORS[i % MODEL_COLORS.length]);
 
-  const datasets = models.map(model => ({
-    label: model,
-    data: dates.map(d => {
-      const row = (byDate.get(d) || []).find(r => r.model === model);
-      return row ? parseFloat(row.cost) : 0;
-    }),
-    backgroundColor: colorMap[model],
-    borderRadius: 4,
-    borderWidth: 0
-  }));
-
-  charts.push(new Chart(document.getElementById('dailyCostChart'), {
-    type: 'bar',
-    data: { labels: dates, datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ¥${ctx.raw.toFixed(2)}` } } },
-      scales: {
-        x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } },
-        y: { stacked: true, title: { display: true, text: 'CNY (¥)' }, ticks: { font: { size: 11 } } }
-      }
-    }
-  }));
+  chart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      valueFormatter: v => '¥' + v.toFixed(2)
+    },
+    legend: { data: models, bottom: 0 },
+    grid: { left: 60, right: 20, top: 20, bottom: 40 },
+    xAxis: { type: 'category', data: dates },
+    yAxis: { type: 'value', name: 'CNY (¥)' },
+    series: models.map(model => ({
+      name: model,
+      type: 'bar',
+      stack: 'total',
+      data: dates.map(d => {
+        const row = (byDate.get(d) || []).find(r => r.model === model);
+        return row ? parseFloat(row.cost) : 0;
+      }),
+      itemStyle: { color: colorMap[model], borderRadius: [4, 4, 0, 0] },
+      emphasis: { focus: 'series' }
+    }))
+  });
 }
 
 /* ---- chart: token type doughnut ---- */
 function renderTokenType(amountRows) {
+  const chart = createChart('tokenTypeChart');
+  if (!chart) return;
+
   const tokenRows = amountRows.filter(r => r.type !== 'request_count');
   const byType = groupBy(tokenRows, ['type']);
   const types = TOKEN_TYPES.filter(t => byType.has(t));
 
-  charts.push(new Chart(document.getElementById('tokenTypeChart'), {
-    type: 'doughnut',
-    data: {
-      labels: types.map(t => TYPE_LABELS[t]),
-      datasets: [{
-        data: types.map(t => byType.get(t).reduce((s, r) => s + parseInt(r.amount || 0), 0)),
-        backgroundColor: types.map(t => TYPE_COLORS[t]),
-        borderWidth: 2,
-        borderColor: '#fff'
-      }]
+  chart.setOption({
+    tooltip: {
+      trigger: 'item',
+      formatter: p => `${p.name}: ${formatNum(p.value)} (${p.percent}%)`
     },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { tooltip: { callbacks: { label: ctx => `${ctx.label}: ${formatNum(ctx.raw)}` } } }
-    }
-  }));
+    legend: { bottom: 0 },
+    series: [{
+      type: 'pie',
+      radius: ['45%', '70%'],
+      center: ['50%', '45%'],
+      data: types.map(t => ({
+        name: TYPE_LABELS[t],
+        value: byType.get(t).reduce((s, r) => s + parseInt(r.amount || 0), 0),
+        itemStyle: { color: TYPE_COLORS[t] }
+      })),
+      label: { formatter: '{b}\n{d}%' },
+      emphasis: { focus: 'self' }
+    }]
+  });
 }
 
 /* ---- chart: daily token trends ---- */
 function renderDailyTokens(amountRows) {
+  const chart = createChart('dailyTokenChart');
+  if (!chart) return;
+
   const tokenRows = amountRows.filter(r => r.type !== 'request_count');
   const byDateType = groupBy(tokenRows, ['utc_date', 'type']);
   const dates = [...new Set(tokenRows.map(r => r.utc_date))].sort();
 
-  const datasets = TOKEN_TYPES.map(type => ({
-    label: TYPE_LABELS[type],
-    data: dates.map(d => {
-      const rows = byDateType.get(`${d}|${type}`) || [];
-      return rows.reduce((s, r) => s + parseInt(r.amount || 0), 0);
-    }),
-    borderColor: TYPE_COLORS[type],
-    backgroundColor: TYPE_COLORS[type] + '20',
-    fill: false, tension: 0.3, pointRadius: 3, pointHoverRadius: 5, borderWidth: 2
-  }));
-
-  charts.push(new Chart(document.getElementById('dailyTokenChart'), {
-    type: 'line',
-    data: { labels: dates, datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${formatNum(ctx.raw)}` } } },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
-        y: { title: { display: true, text: 'Tokens' }, ticks: { font: { size: 11 }, callback: v => formatNum(v) } }
-      }
-    }
-  }));
+  chart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      valueFormatter: v => formatNum(v)
+    },
+    legend: { data: TOKEN_TYPES.map(t => TYPE_LABELS[t]), bottom: 0 },
+    grid: { left: 80, right: 20, top: 20, bottom: 40 },
+    xAxis: { type: 'category', data: dates },
+    yAxis: {
+      type: 'value',
+      name: 'Tokens',
+      axisLabel: { formatter: v => formatNum(v) }
+    },
+    series: TOKEN_TYPES.map(type => ({
+      name: TYPE_LABELS[type],
+      type: 'line',
+      data: dates.map(d => {
+        const rows = byDateType.get(`${d}|${type}`) || [];
+        return rows.reduce((s, r) => s + parseInt(r.amount || 0), 0);
+      }),
+      itemStyle: { color: TYPE_COLORS[type] },
+      lineStyle: { color: TYPE_COLORS[type], width: 2 },
+      symbol: 'circle',
+      symbolSize: 6,
+      emphasis: { focus: 'series' }
+    }))
+  });
 }
 
-/* ---- chart: cost by API key (computed from amount.csv, stacked by model) ---- */
+/* ---- chart: cost by API key (stacked by model) ---- */
 function renderKeyCost(amountRows) {
+  const chart = createChart('keyCostChart');
+  if (!chart) return;
+
   const byKeyModel = groupBy(amountRows, ['api_key_name', 'model']);
   const keys = [...new Set(amountRows.map(r => r.api_key_name))].sort();
   const models = [...new Set(amountRows.map(r => r.model))].sort().reverse();
   const colorMap = {};
   models.forEach((m, i) => colorMap[m] = MODEL_COLORS[i % MODEL_COLORS.length]);
 
-  const datasets = models.map(model => ({
-    label: model,
-    data: keys.map(key => {
-      const rows = byKeyModel.get(`${key}|${model}`) || [];
-      return computeCost(rows);
-    }),
-    backgroundColor: colorMap[model],
-    borderRadius: 4,
-    borderWidth: 0
-  }));
-
-  charts.push(new Chart(document.getElementById('keyCostChart'), {
-    type: 'bar',
-    data: { labels: keys, datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ¥${ctx.raw.toFixed(2)}` } } },
-      scales: {
-        x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } },
-        y: { stacked: true, title: { display: true, text: 'CNY (¥)' }, ticks: { font: { size: 11 } } }
-      }
-    }
-  }));
+  chart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      valueFormatter: v => '¥' + v.toFixed(2)
+    },
+    legend: { data: models, bottom: 0 },
+    grid: { left: 60, right: 20, top: 20, bottom: 50 },
+    xAxis: { type: 'category', data: keys, axisLabel: { rotate: 30 } },
+    yAxis: { type: 'value', name: 'CNY (¥)' },
+    series: models.map(model => ({
+      name: model,
+      type: 'bar',
+      stack: 'total',
+      data: keys.map(key => {
+        const rows = byKeyModel.get(`${key}|${model}`) || [];
+        return computeCost(rows);
+      }),
+      itemStyle: { color: colorMap[model], borderRadius: [4, 4, 0, 0] },
+      emphasis: { focus: 'series' }
+    }))
+  });
 }
 
 /* ---- chart: token usage by API key (grouped bar by token type) ---- */
 function renderKeyTokens(amountRows) {
+  const chart = createChart('keyTokenChart');
+  if (!chart) return;
+
   const tokenRows = amountRows.filter(r => r.type !== 'request_count');
   const byKeyType = groupBy(tokenRows, ['api_key_name', 'type']);
   const keys = [...new Set(tokenRows.map(r => r.api_key_name))].sort();
 
-  const datasets = TOKEN_TYPES.map(type => ({
-    label: TYPE_LABELS[type],
-    data: keys.map(key => {
-      const rows = byKeyType.get(`${key}|${type}`) || [];
-      return rows.reduce((s, r) => s + parseInt(r.amount || 0), 0);
-    }),
-    backgroundColor: TYPE_COLORS[type],
-    borderRadius: 4,
-    borderWidth: 0
-  }));
-
-  charts.push(new Chart(document.getElementById('keyTokenChart'), {
-    type: 'bar',
-    data: { labels: keys, datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${formatNum(ctx.raw)}` } } },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
-        y: { title: { display: true, text: 'Tokens' }, ticks: { font: { size: 11 }, callback: v => formatNum(v) } }
-      }
-    }
-  }));
+  chart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      valueFormatter: v => formatNum(v)
+    },
+    legend: { data: TOKEN_TYPES.map(t => TYPE_LABELS[t]), bottom: 0 },
+    grid: { left: 80, right: 20, top: 20, bottom: 50 },
+    xAxis: { type: 'category', data: keys, axisLabel: { rotate: 30 } },
+    yAxis: {
+      type: 'value',
+      name: 'Tokens',
+      axisLabel: { formatter: v => formatNum(v) }
+    },
+    series: TOKEN_TYPES.map(type => ({
+      name: TYPE_LABELS[type],
+      type: 'bar',
+      data: keys.map(key => {
+        const rows = byKeyType.get(`${key}|${type}`) || [];
+        return rows.reduce((s, r) => s + parseInt(r.amount || 0), 0);
+      }),
+      itemStyle: { color: TYPE_COLORS[type], borderRadius: [4, 4, 0, 0] },
+      emphasis: { focus: 'series' }
+    }))
+  });
 }
 
 /* ---- main handler ---- */
@@ -351,7 +387,7 @@ async function handleFile(file) {
     }
 
     dropZone.classList.add('loaded');
-    fileNameEl.textContent = `已加载: ${file.name}`;
+    fileNameEl.textContent = '已加载: ' + file.name;
     loadingEl.style.display = 'none';
     contentEl.style.display = '';
 
@@ -364,7 +400,7 @@ async function handleFile(file) {
     renderKeyTokens(amountRows);
 
   } catch (err) {
-    showError(`解析文件出错: ${err.message}`);
+    showError('解析文件出错: ' + err.message);
     loadingEl.style.display = 'none';
     console.error(err);
   }
