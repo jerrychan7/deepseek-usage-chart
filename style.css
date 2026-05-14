@@ -255,6 +255,11 @@ header p  { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
 
 .chart-full { grid-column: 1 / -1; }
 
+@media (max-width: 750px) {
+  .charts { grid-template-columns: 1fr; }
+  .chart-full { grid-column: 1; }
+}
+
 /* ---- messages ---- */
 .error {
   background: var(--error-bg);
