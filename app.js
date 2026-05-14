@@ -35,6 +35,16 @@ fileInput.accept = '.zip';
 
 let charts = [];
 
+/* ---- filter state ---- */
+let allCostRows = [];
+let allAmountRows = [];
+let activeKeys = new Set();  // empty set = show all keys
+
+function getFilteredAmountRows() {
+  if (activeKeys.size === 0) return allAmountRows;
+  return allAmountRows.filter(r => activeKeys.has(r.api_key_name));
+}
+
 /* ---- upload events ---- */
 dropZone.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', e => {
@@ -348,6 +358,50 @@ function renderKeyTokens(amountRows) {
   });
 }
 
+/* ---- filter UI ---- */
+function renderFilter() {
+  const keys = [...new Set(allAmountRows.map(r => r.api_key_name))].sort();
+  const bar = document.getElementById('filterBar');
+  const container = document.getElementById('filterKeys');
+  if (keys.length <= 1) { bar.style.display = 'none'; return; }
+
+  bar.style.display = '';
+  activeKeys = new Set(); // reset: show all
+  container.innerHTML = keys.map(key =>
+    `<label class="filter-chip"><input type="checkbox" value="${escapeHtml(key)}" checked> ${escapeHtml(key)}</label>`
+  ).join('');
+
+  const checkboxes = container.querySelectorAll('input[type=checkbox]');
+
+  function onCheckChange() {
+    activeKeys = new Set();
+    checkboxes.forEach(cb => { if (cb.checked) activeKeys.add(cb.value); });
+    applyFilter();
+  }
+
+  checkboxes.forEach(cb => cb.addEventListener('change', onCheckChange));
+
+  document.getElementById('btnSelectAll').onclick = () => {
+    checkboxes.forEach(cb => { cb.checked = true; });
+    onCheckChange();
+  };
+  document.getElementById('btnDeselectAll').onclick = () => {
+    checkboxes.forEach(cb => { cb.checked = false; });
+    onCheckChange();
+  };
+}
+
+function applyFilter() {
+  clearCharts();
+  const amountRows = getFilteredAmountRows();
+  renderKeySummary(amountRows);
+  renderTokenType(amountRows);
+  renderDailyTokens(amountRows);
+  renderKeyCost(amountRows);
+  renderKeyTokens(amountRows);
+  renderDailyCost(allCostRows); // cost.csv has no per-key data
+}
+
 /* ---- main handler ---- */
 async function handleFile(file) {
   errorEl.style.display = 'none';
@@ -386,18 +440,17 @@ async function handleFile(file) {
       return;
     }
 
+    allCostRows = costRows;
+    allAmountRows = amountRows;
+
     dropZone.classList.add('loaded');
     fileNameEl.textContent = '已加载: ' + file.name;
     loadingEl.style.display = 'none';
     contentEl.style.display = '';
 
     renderSummary(costRows, amountRows);
-    renderKeySummary(amountRows);
-    renderDailyCost(costRows);
-    renderTokenType(amountRows);
-    renderDailyTokens(amountRows);
-    renderKeyCost(amountRows);
-    renderKeyTokens(amountRows);
+    renderFilter();
+    applyFilter();
 
   } catch (err) {
     showError('解析文件出错: ' + err.message);
