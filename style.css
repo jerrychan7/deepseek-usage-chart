@@ -89,6 +89,68 @@ header p  { font-size: 14px; color: #86868b; margin-top: 4px; }
 .filter-btn:hover { background: #f5f5f7; }
 .filter-btn-dim { color: #86868b; }
 
+/* ---- detail table ---- */
+.table-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  margin-bottom: 24px;
+}
+.table-card h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #1d1d1f;
+}
+.table-scroll {
+  overflow-x: auto;
+}
+#keyTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  white-space: nowrap;
+}
+#keyTable thead th {
+  background: #f9fafb;
+  color: #515154;
+  font-weight: 600;
+  padding: 10px 14px;
+  text-align: right;
+  border-bottom: 2px solid #e5e5ea;
+}
+#keyTable thead th:first-child { text-align: left; }
+#keyTable tbody td {
+  padding: 10px 14px;
+  text-align: right;
+  border-bottom: 1px solid #f0f0f2;
+  color: #1d1d1f;
+}
+#keyTable tbody td:first-child {
+  text-align: left;
+  font-weight: 500;
+  color: #6366f1;
+}
+#keyTable tbody tr:hover { background: #f9fafb; }
+#keyTable tbody tr.subtotal-row {
+  font-weight: 600;
+  border-top: 1px solid #d1d1d6;
+  background: #f9fafb;
+}
+#keyTable tbody tr.subtotal-row:hover { background: #f0f0f2; }
+#keyTable tbody tr.model-row .model-label {
+  color: #86868b;
+  font-weight: 400;
+}
+#keyTable tbody tr.total-row {
+  font-weight: 700;
+  border-top: 2px solid #e5e5ea;
+  background: #f9fafb;
+}
+#keyTable .val-cost { font-variant-numeric: tabular-nums; font-weight: 600; }
+#keyTable .val-rate { font-variant-numeric: tabular-nums; }
+
 /* ---- charts grid ---- */
 .charts {
   display: grid;
