@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepSeek 使用量图表</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>DeepSeek 用量与费用</h1>
+    <p>上传从 DeepSeek 官网下载的月度用量 ZIP 文件</p>
+  </header>
+
+  <div id="dropZone" class="drop-zone">
+    <div class="icon">📊</div>
+    <div class="text">点击选择文件或拖拽 ZIP 到此处</div>
+    <div class="hint">从 DeepSeek 官网 → 用量明细 → 导出记录 下载的 .zip 文件</div>
+    <div class="file-name" id="fileName"></div>
+  </div>
+
+  <div class="error" id="error"></div>
+  <div class="loading" id="loading">解析数据中...</div>
+
+  <div id="content" style="display:none;">
+    <div class="summary" id="summary"></div>
+
+    <div class="section-title">按 API Key 统计</div>
+    <div class="summary" id="keySummary"></div>
+
+    <div class="charts">
+      <div class="chart-card">
+        <h2>每日费用（按模型）</h2>
+        <div class="chart-wrap"><canvas id="dailyCostChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Token 用量分布</h2>
+        <div class="chart-wrap"><canvas id="tokenTypeChart"></canvas></div>
+      </div>
+      <div class="chart-card chart-full">
+        <h2>每日 Token 用量趋势</h2>
+        <div class="chart-wrap"><canvas id="dailyTokenChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>API Key 费用对比</h2>
+        <div class="chart-wrap"><canvas id="keyCostChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>API Key Token 用量</h2>
+        <div class="chart-wrap"><canvas id="keyTokenChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    数据仅在浏览器本地处理，不会上传到任何服务器
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
