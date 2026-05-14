@@ -51,6 +51,23 @@ function chartTooltipStyle() {
   };
 }
 
+function applyStackBorderRadius(chart) {
+  chart.on('legendselectchanged', (params) => {
+    const selected = params.selected;
+    const seriesOpt = chart.getOption().series;
+    let lastVisible = -1;
+    for (let i = seriesOpt.length - 1; i >= 0; i--) {
+      const name = seriesOpt[i].name;
+      if (selected[name] !== false) { lastVisible = i; break; }
+    }
+    chart.setOption({
+      series: seriesOpt.map((s, i) => ({
+        itemStyle: { borderRadius: i === lastVisible ? [4, 4, 0, 0] : 0 }
+      }))
+    });
+  });
+}
+
 document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 applyTheme(getTheme());
 
@@ -241,7 +258,7 @@ function renderDailyCost(costRows) {
     grid: { left: 60, right: 20, top: 20, bottom: 40 },
     xAxis: { type: 'category', data: dates, axisLabel: { color: tc } },
     yAxis: { type: 'value', name: 'CNY (¥)', nameTextStyle: { color: tc }, axisLabel: { color: tc } },
-    series: models.map(model => ({
+    series: models.map((model, i) => ({
       name: model,
       type: 'bar',
       stack: 'total',
@@ -249,10 +266,11 @@ function renderDailyCost(costRows) {
         const row = (byDate.get(d) || []).find(r => r.model === model);
         return row ? parseFloat(row.cost) : 0;
       }),
-      itemStyle: { color: colorMap[model], borderRadius: [4, 4, 0, 0] },
+      itemStyle: { color: colorMap[model], borderRadius: i === models.length - 1 ? [4, 4, 0, 0] : 0 },
       emphasis: { focus: 'series' }
     }))
   });
+  applyStackBorderRadius(chart);
 }
 
 /* ---- chart: token type doughnut ---- */
@@ -352,7 +370,7 @@ function renderKeyCost(amountRows) {
     grid: { left: 60, right: 20, top: 20, bottom: 50 },
     xAxis: { type: 'category', data: keys, axisLabel: { rotate: 30, color: tc } },
     yAxis: { type: 'value', name: 'CNY (¥)', nameTextStyle: { color: tc }, axisLabel: { color: tc } },
-    series: models.map(model => ({
+    series: models.map((model, i) => ({
       name: model,
       type: 'bar',
       stack: 'total',
@@ -360,10 +378,11 @@ function renderKeyCost(amountRows) {
         const rows = byKeyModel.get(`${key}|${model}`) || [];
         return computeCost(rows);
       }),
-      itemStyle: { color: colorMap[model], borderRadius: [4, 4, 0, 0] },
+      itemStyle: { color: colorMap[model], borderRadius: i === models.length - 1 ? [4, 4, 0, 0] : 0 },
       emphasis: { focus: 'series' }
     }))
   });
+  applyStackBorderRadius(chart);
 }
 
 /* ---- chart: token usage by API key (grouped bar by token type) ---- */
