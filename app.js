@@ -20,6 +20,40 @@ const TYPE_LABELS = {
 
 const TOKEN_TYPES = ['output_tokens', 'input_cache_hit_tokens', 'input_cache_miss_tokens'];
 
+/* ---- theme ---- */
+function getTheme() {
+  const stored = localStorage.getItem('theme');
+  if (stored) return stored;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('themeToggle').textContent = theme === 'dark' ? '☀' : '☾';
+  localStorage.setItem('theme', theme);
+}
+
+function toggleTheme() {
+  const next = getTheme() === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+  if (allAmountRows.length > 0) applyFilter();
+}
+
+function chartTextColor() {
+  return getTheme() === 'dark' ? '#aeaeb2' : '#515154';
+}
+function chartTooltipStyle() {
+  const dark = getTheme() === 'dark';
+  return {
+    backgroundColor: dark ? '#3a3a3c' : '#fff',
+    borderColor:     dark ? '#48484a' : '#e5e5ea',
+    textStyle:       { color: dark ? '#f5f5f7' : '#1d1d1f' }
+  };
+}
+
+document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+applyTheme(getTheme());
+
 /* ---- DOM refs ---- */
 const dropZone   = document.getElementById('dropZone');
 const errorEl    = document.getElementById('error');
@@ -195,16 +229,18 @@ function renderDailyCost(costRows) {
   const colorMap = {};
   models.forEach((m, i) => colorMap[m] = MODEL_COLORS[i % MODEL_COLORS.length]);
 
+  const tc = chartTextColor();
   chart.setOption({
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      valueFormatter: v => '¥' + v.toFixed(2)
+      valueFormatter: v => '¥' + v.toFixed(2),
+      ...chartTooltipStyle()
     },
-    legend: { data: models, bottom: 0 },
+    legend: { data: models, bottom: 0, textStyle: { color: tc } },
     grid: { left: 60, right: 20, top: 20, bottom: 40 },
-    xAxis: { type: 'category', data: dates },
-    yAxis: { type: 'value', name: 'CNY (¥)' },
+    xAxis: { type: 'category', data: dates, axisLabel: { color: tc } },
+    yAxis: { type: 'value', name: 'CNY (¥)', nameTextStyle: { color: tc }, axisLabel: { color: tc } },
     series: models.map(model => ({
       name: model,
       type: 'bar',
@@ -228,12 +264,14 @@ function renderTokenType(amountRows) {
   const byType = groupBy(tokenRows, ['type']);
   const types = TOKEN_TYPES.filter(t => byType.has(t));
 
+  const tc = chartTextColor();
   chart.setOption({
     tooltip: {
       trigger: 'item',
-      formatter: p => `${p.name}: ${formatNum(p.value)} (${p.percent}%)`
+      formatter: p => `${p.name}: ${formatNum(p.value)} (${p.percent}%)`,
+      ...chartTooltipStyle()
     },
-    legend: { bottom: 0 },
+    legend: { bottom: 0, textStyle: { color: tc } },
     series: [{
       type: 'pie',
       radius: ['45%', '70%'],
@@ -243,7 +281,8 @@ function renderTokenType(amountRows) {
         value: byType.get(t).reduce((s, r) => s + parseInt(r.amount || 0), 0),
         itemStyle: { color: TYPE_COLORS[t] }
       })),
-      label: { formatter: '{b}\n{d}%' },
+      label: { formatter: '{b}\n{d}%', color: tc },
+      labelLine: { lineStyle: { color: tc } },
       emphasis: { focus: 'self' }
     }]
   });
@@ -257,19 +296,22 @@ function renderDailyTokens(amountRows) {
   const tokenRows = amountRows.filter(r => r.type !== 'request_count');
   const byDateType = groupBy(tokenRows, ['utc_date', 'type']);
   const dates = [...new Set(tokenRows.map(r => r.utc_date))].sort();
+  const tc = chartTextColor();
 
   chart.setOption({
     tooltip: {
       trigger: 'axis',
-      valueFormatter: v => formatNum(v)
+      valueFormatter: v => formatNum(v),
+      ...chartTooltipStyle()
     },
-    legend: { data: TOKEN_TYPES.map(t => TYPE_LABELS[t]), bottom: 0 },
+    legend: { data: TOKEN_TYPES.map(t => TYPE_LABELS[t]), bottom: 0, textStyle: { color: tc } },
     grid: { left: 80, right: 20, top: 20, bottom: 40 },
-    xAxis: { type: 'category', data: dates },
+    xAxis: { type: 'category', data: dates, axisLabel: { color: tc } },
     yAxis: {
       type: 'value',
       name: 'Tokens',
-      axisLabel: { formatter: v => formatNum(v) }
+      nameTextStyle: { color: tc },
+      axisLabel: { formatter: v => formatNum(v), color: tc }
     },
     series: TOKEN_TYPES.map(type => ({
       name: TYPE_LABELS[type],
@@ -297,17 +339,19 @@ function renderKeyCost(amountRows) {
   const models = [...new Set(amountRows.map(r => r.model))].sort().reverse();
   const colorMap = {};
   models.forEach((m, i) => colorMap[m] = MODEL_COLORS[i % MODEL_COLORS.length]);
+  const tc = chartTextColor();
 
   chart.setOption({
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      valueFormatter: v => '¥' + v.toFixed(2)
+      valueFormatter: v => '¥' + v.toFixed(2),
+      ...chartTooltipStyle()
     },
-    legend: { data: models, bottom: 0 },
+    legend: { data: models, bottom: 0, textStyle: { color: tc } },
     grid: { left: 60, right: 20, top: 20, bottom: 50 },
-    xAxis: { type: 'category', data: keys, axisLabel: { rotate: 30 } },
-    yAxis: { type: 'value', name: 'CNY (¥)' },
+    xAxis: { type: 'category', data: keys, axisLabel: { rotate: 30, color: tc } },
+    yAxis: { type: 'value', name: 'CNY (¥)', nameTextStyle: { color: tc }, axisLabel: { color: tc } },
     series: models.map(model => ({
       name: model,
       type: 'bar',
@@ -330,20 +374,23 @@ function renderKeyTokens(amountRows) {
   const tokenRows = amountRows.filter(r => r.type !== 'request_count');
   const byKeyType = groupBy(tokenRows, ['api_key_name', 'type']);
   const keys = [...new Set(tokenRows.map(r => r.api_key_name))].sort();
+  const tc = chartTextColor();
 
   chart.setOption({
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      valueFormatter: v => formatNum(v)
+      valueFormatter: v => formatNum(v),
+      ...chartTooltipStyle()
     },
-    legend: { data: TOKEN_TYPES.map(t => TYPE_LABELS[t]), bottom: 0 },
+    legend: { data: TOKEN_TYPES.map(t => TYPE_LABELS[t]), bottom: 0, textStyle: { color: tc } },
     grid: { left: 80, right: 20, top: 20, bottom: 50 },
-    xAxis: { type: 'category', data: keys, axisLabel: { rotate: 30 } },
+    xAxis: { type: 'category', data: keys, axisLabel: { rotate: 30, color: tc } },
     yAxis: {
       type: 'value',
       name: 'Tokens',
-      axisLabel: { formatter: v => formatNum(v) }
+      nameTextStyle: { color: tc },
+      axisLabel: { formatter: v => formatNum(v), color: tc }
     },
     series: TOKEN_TYPES.map(type => ({
       name: TYPE_LABELS[type],
