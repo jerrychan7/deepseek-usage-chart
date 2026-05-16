@@ -492,29 +492,45 @@ function renderFilter() {
   if (keys.length <= 1) { bar.style.display = 'none'; return; }
 
   bar.style.display = '';
-  activeKeys = new Set(); // reset: show all
+  activeKeys = new Set();
   container.innerHTML = keys.map(key =>
-    `<label class="filter-chip"><input type="checkbox" value="${escapeHtml(key)}" checked> ${escapeHtml(key)}</label>`
+    `<label class="filter-chip"><input type="checkbox" value="${escapeHtml(key)}"> ${escapeHtml(key)}</label>`
   ).join('');
 
   const checkboxes = container.querySelectorAll('input[type=checkbox]');
+  const btnSelectAll = document.getElementById('btnSelectAll');
+  const btnClear = document.getElementById('btnClear');
+
+  function updateButtons() {
+    const checked = [...checkboxes].filter(cb => cb.checked);
+    btnSelectAll.style.display = checked.length === 0 || checked.length === checkboxes.length ? 'none' : '';
+    btnClear.style.display = checked.length === 0 ? 'none' : '';
+  }
 
   function onCheckChange() {
     activeKeys = new Set();
     checkboxes.forEach(cb => { if (cb.checked) activeKeys.add(cb.value); });
+    updateButtons();
     applyFilter();
   }
 
   checkboxes.forEach(cb => cb.addEventListener('change', onCheckChange));
 
-  document.getElementById('btnSelectAll').onclick = () => {
+  btnSelectAll.onclick = () => {
     checkboxes.forEach(cb => { cb.checked = true; });
-    onCheckChange();
+    activeKeys = new Set([...checkboxes].map(cb => cb.value));
+    updateButtons();
+    applyFilter();
   };
-  document.getElementById('btnDeselectAll').onclick = () => {
+
+  btnClear.onclick = () => {
     checkboxes.forEach(cb => { cb.checked = false; });
-    onCheckChange();
+    activeKeys = new Set();
+    updateButtons();
+    applyFilter();
   };
+
+  updateButtons();
 }
 
 function applyFilter() {
