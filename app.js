@@ -249,7 +249,7 @@ function renderDailyCost(costRows) {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      valueFormatter: v => currencySymbol + v.toFixed(2)
+      valueFormatter: v => v > 0 && v < 0.01 ? '<' + currencySymbol + '0.01' : currencySymbol + v.toFixed(2)
     },
     legend: { data: models, bottom: 0 },
     xAxis: { type: 'category', data: dates },
@@ -350,7 +350,7 @@ function renderKeyCost(amountRows) {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      valueFormatter: v => currencySymbol + v.toFixed(2)
+      valueFormatter: v => v > 0 && v < 0.01 ? '<' + currencySymbol + '0.01' : currencySymbol + v.toFixed(2)
     },
     legend: { data: models, bottom: 0 },
     xAxis: { type: 'category', data: keys },
