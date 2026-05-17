@@ -66,6 +66,7 @@ const errorEl    = document.getElementById('error');
 const loadingEl  = document.getElementById('loading');
 const contentEl  = document.getElementById('content');
 const fileNameEl = document.getElementById('fileName');
+const btnClearCache = document.getElementById('btnClearCache');
 
 
 const fileInput = document.createElement('input');
@@ -547,10 +548,10 @@ function renderFilter() {
   if (keys.length <= 1) { bar.style.display = 'none'; return; }
 
   bar.style.display = '';
-  activeKeys = new Set();
-  container.innerHTML = keys.map(key =>
-    `<label class="filter-chip"><input type="checkbox" value="${escapeHtml(key)}"> ${escapeHtml(key)}</label>`
-  ).join('');
+  container.innerHTML = keys.map(key => {
+    const checked = activeKeys.has(key) ? 'checked' : '';
+    return `<label class="filter-chip"><input type="checkbox" value="${escapeHtml(key)}" ${checked}> ${escapeHtml(key)}</label>`;
+  }).join('');
 
   const checkboxes = container.querySelectorAll('input[type=checkbox]');
   const btnSelectAll = document.getElementById('btnSelectAll');
@@ -596,10 +597,10 @@ function renderModelFilter() {
   if (models.length <= 1) { bar.style.display = 'none'; return; }
 
   bar.style.display = '';
-  activeModels = new Set();
-  container.innerHTML = models.map(m =>
-    `<label class="filter-chip"><input type="checkbox" value="${escapeHtml(m)}"> ${escapeHtml(m)}</label>`
-  ).join('');
+  container.innerHTML = models.map(m => {
+    const checked = activeModels.has(m) ? 'checked' : '';
+    return `<label class="filter-chip"><input type="checkbox" value="${escapeHtml(m)}" ${checked}> ${escapeHtml(m)}</label>`;
+  }).join('');
 
   const checkboxes = container.querySelectorAll('input[type=checkbox]');
   const btnSelectAll = document.getElementById('btnSelectAllModels');
@@ -647,11 +648,10 @@ function renderDateFilter() {
 
   document.getElementById('dateMin').min = minDate;
   document.getElementById('dateMin').max = maxDate;
+  document.getElementById('dateMin').value = dateMin;
   document.getElementById('dateMax').min = minDate;
   document.getElementById('dateMax').max = maxDate;
-
-  dateMin = '';
-  dateMax = '';
+  document.getElementById('dateMax').value = dateMax;
 
   document.getElementById('dateMin').onchange = e => {
     dateMin = e.target.value;
@@ -674,6 +674,7 @@ function applyFilter() {
   renderKeyTokens(amountRows);
   renderDailyCost(costRows);
   requestAnimationFrame(() => charts.forEach(c => c.resize()));
+  saveFilterState();
 }
 
 /* ---- main handler ---- */
@@ -717,6 +718,12 @@ async function handleFile(file) {
     allCostRows = costRows;
     allAmountRows = amountRows;
 
+    // reset filters for new upload
+    activeKeys = new Set();
+    activeModels = new Set();
+    dateMin = '';
+    dateMax = '';
+
     // extract currency from cost data
     const currencies = [...new Set(costRows.filter(r => r.currency).map(r => r.currency))];
     multiCurrency = currencies.length > 1;
@@ -729,8 +736,11 @@ async function handleFile(file) {
 
     dropZone.classList.add('loaded');
     fileNameEl.textContent = '已加载: ' + file.name;
+    btnClearCache.style.display = '';
     loadingEl.style.display = 'none';
     contentEl.style.display = '';
+
+    saveCache(file);
 
     renderFilter();
     renderModelFilter();
@@ -749,4 +759,128 @@ function showError(msg) {
   errorEl.style.display = 'block';
   dropZone.classList.remove('loaded');
   fileNameEl.textContent = '';
+  btnClearCache.style.display = 'none';
 }
+
+/* ---- localStorage cache ---- */
+const CACHE_KEY = 'deepseek_usage_cache';
+
+function saveCache(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const cache = {
+      zipBase64: reader.result,
+      fileName: file.name,
+      filter: {
+        activeKeys: [...activeKeys],
+        activeModels: [...activeModels],
+        dateMin,
+        dateMax
+      }
+    };
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    } catch (e) {
+      // quota exceeded or disabled
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveFilterState() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return;
+    const cache = JSON.parse(raw);
+    cache.filter = {
+      activeKeys: [...activeKeys],
+      activeModels: [...activeModels],
+      dateMin,
+      dateMax
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+  } catch (e) {}
+}
+
+async function restoreFromCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return false;
+    const cache = JSON.parse(raw);
+    if (!cache.zipBase64) return false;
+
+    loadingEl.style.display = 'block';
+
+    const res = await fetch(cache.zipBase64);
+    const blob = await res.blob();
+    const zip = await JSZip.loadAsync(blob);
+    let amountText = null, costText = null;
+
+    for (const [name, entry] of Object.entries(zip.files)) {
+      if (entry.dir) continue;
+      const base = name.split('/').pop();
+      if (base.startsWith('amount-') && base.endsWith('.csv')) amountText = await entry.async('string');
+      else if (base.startsWith('cost-') && base.endsWith('.csv')) costText = await entry.async('string');
+    }
+
+    if (!amountText || !costText) return false;
+
+    const costRows = parseCSV(costText);
+    const amountRows = parseCSV(amountText);
+    if (costRows.length === 0 || amountRows.length === 0) return false;
+
+    allCostRows = costRows;
+    allAmountRows = amountRows;
+
+    const currencies = [...new Set(costRows.filter(r => r.currency).map(r => r.currency))];
+    multiCurrency = currencies.length > 1;
+    if (currencies.length === 1) {
+      currencyCode = currencies[0];
+      currencySymbol = getCurrencySymbol(currencyCode);
+    } else if (currencies.length > 1) {
+      currencyCode = currencies.join('/');
+    }
+
+    // restore filter state
+    if (cache.filter) {
+      activeKeys = new Set(cache.filter.activeKeys || []);
+      activeModels = new Set(cache.filter.activeModels || []);
+      dateMin = cache.filter.dateMin || '';
+      dateMax = cache.filter.dateMax || '';
+    }
+
+    dropZone.classList.add('loaded');
+    fileNameEl.textContent = '已缓存: ' + (cache.fileName || '');
+    btnClearCache.style.display = '';
+    loadingEl.style.display = 'none';
+    contentEl.style.display = '';
+
+    renderFilter();
+    renderModelFilter();
+    renderDateFilter();
+    applyFilter();
+    return true;
+  } catch (e) {
+    localStorage.removeItem(CACHE_KEY);
+    return false;
+  }
+}
+
+function clearCache() {
+  localStorage.removeItem(CACHE_KEY);
+  btnClearCache.style.display = 'none';
+  dropZone.classList.remove('loaded');
+  fileNameEl.textContent = '';
+  contentEl.style.display = 'none';
+  clearCharts();
+  allCostRows = [];
+  allAmountRows = [];
+  activeKeys = new Set();
+  activeModels = new Set();
+  dateMin = '';
+  dateMax = '';
+}
+
+btnClearCache.addEventListener('click', e => { e.stopPropagation(); clearCache(); });
+
+restoreFromCache();

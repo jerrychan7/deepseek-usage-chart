@@ -103,6 +103,12 @@ header p  { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
 .drop-zone .text        { font-size: 15px; color: var(--text-tertiary); }
 .drop-zone .hint        { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 .drop-zone .file-name   { font-size: 13px; color: var(--loaded-border); margin-top: 8px; font-weight: 500; }
+.clear-cache-btn {
+  font-size: 12px; padding: 4px 12px; margin-top: 6px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--card-bg); color: var(--text-secondary); cursor: pointer;
+}
+.clear-cache-btn:hover { background: var(--hover-bg); }
 
 /* ---- summary cards ---- */
 .summary {
