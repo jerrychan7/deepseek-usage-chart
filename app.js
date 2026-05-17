@@ -77,7 +77,10 @@ let charts = [];
 /* ---- filter state ---- */
 let allCostRows = [];
 let allAmountRows = [];
-let activeKeys = new Set();  // empty set = show all keys
+let activeKeys = new Set();    // empty set = show all keys
+let activeModels = new Set();  // empty set = show all models
+let dateMin = '';
+let dateMax = '';
 let currencySymbol = '¥';
 let currencyCode = 'CNY';
 let multiCurrency = false;
@@ -88,9 +91,26 @@ function getCurrencySymbol(code) {
   return CURRENCY_SYMBOLS[code] || code;
 }
 
+function filterRows(rows) {
+  let result = rows;
+  if (activeKeys.size > 0) result = result.filter(r => activeKeys.has(r.api_key_name));
+  if (activeModels.size > 0) result = result.filter(r => activeModels.has(r.model));
+  if (dateMin) result = result.filter(r => r.utc_date >= dateMin);
+  if (dateMax) result = result.filter(r => r.utc_date <= dateMax);
+  return result;
+}
+
 function getFilteredAmountRows() {
-  if (activeKeys.size === 0) return allAmountRows;
-  return allAmountRows.filter(r => activeKeys.has(r.api_key_name));
+  return filterRows(allAmountRows);
+}
+
+function getFilteredCostRows() {
+  // cost.csv has no api_key_name, so skip key filter for cost rows
+  let result = allCostRows;
+  if (activeModels.size > 0) result = result.filter(r => activeModels.has(r.model));
+  if (dateMin) result = result.filter(r => r.utc_date >= dateMin);
+  if (dateMax) result = result.filter(r => r.utc_date <= dateMax);
+  return result;
 }
 
 /* ---- upload events ---- */
@@ -568,15 +588,91 @@ function renderFilter() {
   updateButtons();
 }
 
+/* ---- model filter ---- */
+function renderModelFilter() {
+  const models = [...new Set(allAmountRows.map(r => r.model))].sort().reverse();
+  const bar = document.getElementById('modelFilterRow');
+  const container = document.getElementById('filterModels');
+  if (models.length <= 1) { bar.style.display = 'none'; return; }
+
+  bar.style.display = '';
+  activeModels = new Set();
+  container.innerHTML = models.map(m =>
+    `<label class="filter-chip"><input type="checkbox" value="${escapeHtml(m)}"> ${escapeHtml(m)}</label>`
+  ).join('');
+
+  const checkboxes = container.querySelectorAll('input[type=checkbox]');
+  const btnSelectAll = document.getElementById('btnSelectAllModels');
+  const btnClear = document.getElementById('btnClearModels');
+
+  function updateButtons() {
+    const checked = [...checkboxes].filter(cb => cb.checked);
+    btnSelectAll.style.display = checked.length === 0 || checked.length === checkboxes.length ? 'none' : '';
+    btnClear.style.display = checked.length === 0 ? 'none' : '';
+  }
+
+  function onCheckChange() {
+    activeModels = new Set();
+    checkboxes.forEach(cb => { if (cb.checked) activeModels.add(cb.value); });
+    updateButtons();
+    applyFilter();
+  }
+
+  checkboxes.forEach(cb => cb.addEventListener('change', onCheckChange));
+
+  btnSelectAll.onclick = () => {
+    checkboxes.forEach(cb => { cb.checked = true; });
+    activeModels = new Set([...checkboxes].map(cb => cb.value));
+    updateButtons();
+    applyFilter();
+  };
+
+  btnClear.onclick = () => {
+    checkboxes.forEach(cb => { cb.checked = false; });
+    activeModels = new Set();
+    updateButtons();
+    applyFilter();
+  };
+
+  updateButtons();
+}
+
+/* ---- date filter ---- */
+function renderDateFilter() {
+  const dates = [...new Set(allCostRows.map(r => r.utc_date))].sort();
+  const bar = document.getElementById('dateFilterRow');
+  bar.style.display = '';
+  const minDate = dates[0] || '';
+  const maxDate = dates[dates.length - 1] || '';
+
+  document.getElementById('dateMin').min = minDate;
+  document.getElementById('dateMin').max = maxDate;
+  document.getElementById('dateMax').min = minDate;
+  document.getElementById('dateMax').max = maxDate;
+
+  dateMin = '';
+  dateMax = '';
+
+  document.getElementById('dateMin').onchange = e => {
+    dateMin = e.target.value;
+    applyFilter();
+  };
+  document.getElementById('dateMax').onchange = e => {
+    dateMax = e.target.value;
+    applyFilter();
+  };
+}
+
 function applyFilter() {
   clearCharts();
   const amountRows = getFilteredAmountRows();
+  const costRows = getFilteredCostRows();
   renderKeyTable(amountRows);
   renderTokenType(amountRows);
   renderDailyTokens(amountRows);
   renderKeyCost(amountRows);
   renderKeyTokens(amountRows);
-  renderDailyCost(allCostRows); // cost.csv has no per-key data
+  renderDailyCost(costRows);
   requestAnimationFrame(() => charts.forEach(c => c.resize()));
 }
 
@@ -637,6 +733,8 @@ async function handleFile(file) {
     contentEl.style.display = '';
 
     renderFilter();
+    renderModelFilter();
+    renderDateFilter();
     applyFilter();
 
   } catch (err) {

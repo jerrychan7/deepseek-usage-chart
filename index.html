@@ -26,12 +26,25 @@
 
   <div id="content" style="display:none;">
     <div class="filter-bar" id="filterBar" style="display:none;">
-      <span class="filter-label">筛选 Key:</span>
-      <div class="filter-keys" id="filterKeys"></div>
-      <button class="filter-btn filter-btn-dim" id="btnClear">清空</button>
-      <button class="filter-btn" id="btnSelectAll">全选</button>
+      <div class="filter-row">
+        <span class="filter-label">Key:</span>
+        <div class="filter-keys" id="filterKeys"></div>
+        <button class="filter-btn filter-btn-dim" id="btnClear">清空</button>
+        <button class="filter-btn" id="btnSelectAll">全选</button>
+      </div>
+      <div class="filter-row" id="modelFilterRow">
+        <span class="filter-label">模型:</span>
+        <div class="filter-keys" id="filterModels"></div>
+        <button class="filter-btn filter-btn-dim" id="btnClearModels">清空</button>
+        <button class="filter-btn" id="btnSelectAllModels">全选</button>
+      </div>
+      <div class="filter-row" id="dateFilterRow">
+        <span class="filter-label">时间:</span>
+        <input type="date" id="dateMin">
+        <span class="filter-label">~</span>
+        <input type="date" id="dateMax">
+      </div>
     </div>
-
 
     <div class="table-card" id="keyTableWrap" style="display:none;">
       <h2>明细数据</h2>
