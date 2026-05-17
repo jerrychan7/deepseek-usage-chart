@@ -66,8 +66,7 @@ const errorEl    = document.getElementById('error');
 const loadingEl  = document.getElementById('loading');
 const contentEl  = document.getElementById('content');
 const fileNameEl = document.getElementById('fileName');
-const summaryEl  = document.getElementById('summary');
-const keySummaryEl = document.getElementById('keySummary');
+
 
 const fileInput = document.createElement('input');
 fileInput.type = 'file';
@@ -183,52 +182,6 @@ function computeTokens(rows) {
   return rows.filter(r => r.type !== 'request_count')
     .reduce((s, r) => s + parseInt(r.amount || 0), 0);
 }
-
-/* ---- render: global summary ---- */
-function renderSummary(costRows, amountRows) {
-  const totalCost = costRows.reduce((s, r) => s + parseFloat(r.cost || 0), 0);
-
-  const cacheHit  = amountRows.filter(r => r.type === 'input_cache_hit_tokens')
-    .reduce((s, r) => s + parseInt(r.amount || 0), 0);
-  const cacheMiss = amountRows.filter(r => r.type === 'input_cache_miss_tokens')
-    .reduce((s, r) => s + parseInt(r.amount || 0), 0);
-  const cacheTotal = cacheHit + cacheMiss;
-  const cacheRate = cacheTotal > 0 ? (cacheHit / cacheTotal * 100).toFixed(3) : '0.000';
-
-  const totalOutput = amountRows.filter(r => r.type === 'output_tokens')
-    .reduce((s, r) => s + parseInt(r.amount || 0), 0);
-  const totalInput = cacheHit + cacheMiss;
-  const days = new Set(costRows.map(r => r.utc_date)).size;
-
-  summaryEl.innerHTML = [
-    { label: '总费用',       value: `${currencySymbol}${totalCost.toFixed(2)}`,   sub: `${days} 天` },
-    { label: '缓存命中率',   value: `${cacheRate}%`,              sub: `${(cacheHit/1e6).toFixed(1)}M / ${(cacheTotal/1e6).toFixed(1)}M` },
-    { label: '输出 Token',   value: formatNum(totalOutput),       sub: 'output tokens' },
-    { label: '总输入 Token', value: formatNum(totalInput),        sub: 'input tokens (含缓存)' }
-  ].map(c => `<div class="summary-card"><div class="label">${c.label}</div><div class="value">${c.value}</div><div class="sub">${c.sub}</div></div>`).join('');
-}
-
-/* ---- render: per-API-key summary cards ---- */
-function renderKeySummary(amountRows) {
-  const byKey = groupBy(amountRows, ['api_key_name']);
-  const keys = [...byKey.keys()].sort();
-
-  keySummaryEl.innerHTML = keys.map(key => {
-    const rows = byKey.get(key);
-    const cost = computeCost(rows);
-    const tokens = computeTokens(rows);
-    const requests = rows.filter(r => r.type === 'request_count')
-      .reduce((s, r) => s + parseInt(r.amount || 0), 0);
-    const models = [...new Set(rows.map(r => r.model))].join(', ');
-
-    return `<div class="summary-card">
-      <div class="label">${escapeHtml(key)}</div>
-      <div class="value">${currencySymbol}${cost.toFixed(2)}</div>
-      <div class="sub">${formatNum(tokens)} tokens · ${formatNum(requests)} 请求 · ${escapeHtml(models)}</div>
-    </div>`;
-  }).join('');
-}
-
 function escapeHtml(str) {
   const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
   return str.replace(/[&<>"']/g, c => map[c]);
@@ -618,7 +571,6 @@ function renderFilter() {
 function applyFilter() {
   clearCharts();
   const amountRows = getFilteredAmountRows();
-  renderKeySummary(amountRows);
   renderKeyTable(amountRows);
   renderTokenType(amountRows);
   renderDailyTokens(amountRows);
@@ -684,7 +636,6 @@ async function handleFile(file) {
     loadingEl.style.display = 'none';
     contentEl.style.display = '';
 
-    renderSummary(costRows, amountRows);
     renderFilter();
     applyFilter();
 
