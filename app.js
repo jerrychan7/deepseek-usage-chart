@@ -193,7 +193,7 @@ function renderSummary(costRows, amountRows) {
   const cacheMiss = amountRows.filter(r => r.type === 'input_cache_miss_tokens')
     .reduce((s, r) => s + parseInt(r.amount || 0), 0);
   const cacheTotal = cacheHit + cacheMiss;
-  const cacheRate = cacheTotal > 0 ? (cacheHit / cacheTotal * 100).toFixed(1) : '0.0';
+  const cacheRate = cacheTotal > 0 ? (cacheHit / cacheTotal * 100).toFixed(3) : '0.000';
 
   const totalOutput = amountRows.filter(r => r.type === 'output_tokens')
     .reduce((s, r) => s + parseInt(r.amount || 0), 0);
@@ -426,7 +426,7 @@ function renderKeyTable(amountRows) {
     const miss     = rs.filter(r => r.type === 'input_cache_miss_tokens')
       .reduce((s, r) => s + parseInt(r.amount || 0), 0);
     const total    = output + hit + miss;
-    const rate     = (hit + miss) > 0 ? (hit / (hit + miss) * 100).toFixed(1) : '-';
+    const rate     = (hit + miss) > 0 ? (hit / (hit + miss) * 100).toFixed(3) : '-';
     const avgCost  = requests > 0 ? (cost / requests).toFixed(4) : '-';
     const avgTokens = requests > 0 ? Math.round(total / requests) : '-';
     return { cost, requests, output, hit, miss, total, rate, avgCost, avgTokens };
@@ -555,7 +555,7 @@ function renderKeyTable(amountRows) {
     return prefix + (v.cost / v.requests).toFixed(4);
   }).join(' + ')
       : null;
-    grand.rate      = (grand.hit + grand.miss) > 0 ? (grand.hit / (grand.hit + grand.miss) * 100).toFixed(1) : '-';
+    grand.rate      = (grand.hit + grand.miss) > 0 ? (grand.hit / (grand.hit + grand.miss) * 100).toFixed(3) : '-';
     grand.avgCost   = grand.requests > 0 ? (grand.cost / grand.requests).toFixed(4) : '-';
     grand.avgTokens = grand.requests > 0 ? Math.round(grand.total / grand.requests) : '-';
     bodyHtml += rowHtml('总计', grand, 'total-row', '', null, grandCostStr, grandAvgStr);
