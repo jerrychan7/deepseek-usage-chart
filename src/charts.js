@@ -28,6 +28,8 @@ function createChart(domId) {
   const existing = echarts.getInstanceByDom(dom);
   if (existing) existing.dispose();
   const theme = getTheme() === 'dark' ? 'dark' : undefined;
+  // svg renderer mode only use in debug
+  // const chart = echarts.init(dom, theme, { renderer: 'svg' });
   const chart = echarts.init(dom, theme);
   charts.push(chart);
   return chart;
@@ -85,34 +87,173 @@ export function renderDailyCost(costRows) {
   applyStackBorderRadius(chart);
 }
 
-/* ---- token type doughnut ---- */
+/* ---- cost distribution sunburst ---- */
 export function renderTokenType(amountRows) {
   const chart = createChart('tokenTypeChart');
   if (!chart) return;
 
-  const tokenRows = amountRows.filter(r => r.type !== 'request_count');
-  const byType = groupBy(tokenRows, ['type']);
-  const types = TOKEN_TYPES.filter(t => byType.has(t));
+  const costRows = amountRows.filter(r => r.type !== 'request_count');
+  const byModel = groupBy(costRows, ['model']);
+  const byModelKey = groupBy(costRows, ['model', 'api_key_name']);
+
+  const models = [...byModel.keys()].sort().reverse();
+  const modelColorMap = {};
+  models.forEach((m, i) => modelColorMap[m] = MODEL_COLORS[i % MODEL_COLORS.length]);
+
+  const allKeys = [...new Set(costRows.map(r => r.api_key_name))].sort();
+  const keyColorMap = {};
+  allKeys.forEach((k, i) => keyColorMap[k] = MODEL_COLORS[(models.length + i) % MODEL_COLORS.length]);
+
+  // Build key→models mapping for legend hover
+  const keyToModels = {};
+  allKeys.forEach(k => { keyToModels[k] = []; });
+  costRows.forEach(r => {
+    if (!keyToModels[r.api_key_name].includes(r.model)) {
+      keyToModels[r.api_key_name].push(r.model);
+    }
+  });
+
+  // Sunburst data: models as roots, each with key children
+  const sunburstData = models.map(m => ({
+    name: m,
+    value: computeCost(byModel.get(m)),
+    itemStyle: { color: modelColorMap[m] },
+    children: [...new Set(costRows.filter(r => r.model === m).map(r => r.api_key_name))].sort().map(k => ({
+      name: k,
+      value: computeCost(byModelKey.get(`${m}|${k}`) || []),
+      itemStyle: { color: keyColorMap[k] }
+    }))
+  }));
 
   chart.setOption({ backgroundColor: 'transparent',
     tooltip: {
       trigger: 'item',
-      formatter: p => `${p.name}: ${formatNum(p.value)} (${p.percent}%)`
+      formatter: p => {
+        const val = p.value;
+        const formatted = val > 0 && val < 0.01 ? '<' + currencySymbol + '0.01' : currencySymbol + val.toFixed(2);
+        return `${p.name}: ${formatted}`;
+      }
     },
-    legend: { bottom: 0 },
+    legend: { show: false },
     series: [{
-      type: 'pie',
-      radius: ['45%', '70%'],
+      type: 'sunburst',
+      data: sunburstData,
+      radius: ['18%', '80%'],
       center: ['50%', '45%'],
-      data: types.map(t => ({
-        name: TYPE_LABELS[t],
-        value: byType.get(t).reduce((s, r) => s + parseInt(r.amount || 0), 0),
-        itemStyle: { color: TYPE_COLORS[t] }
-      })),
-      label: { formatter: '{b}\n{d}%' },
-      emphasis: { focus: 'self' }
+      levels: [
+        {},
+        {
+          // inner ring (models): tangential labels
+          label: {
+            rotate: 'tangential',
+            fontSize: 11,
+          }
+        },
+        {
+          // outermost ring (keys): radial labels
+        },
+      ],
+      itemStyle: {
+        borderRadius: 4,
+        borderColor: 'transparent',
+        borderWidth: 2
+      },
+      emphasis: {
+        focus: 'relative'
+      }
     }]
   });
+
+  // Legend dim helper (chart hover uses built-in focus:'relative')
+  function applyDim(hoverName) {
+    const isModel = models.includes(hoverName);
+    const opt = chart.getOption();
+    const walk = (nodes, depth, parentMatch) => {
+      (nodes || []).forEach(n => {
+        const selfMatch = n.name === hoverName || (depth === 0 && keyToModels[hoverName]?.includes(n.name));
+        // Only propagate parentMatch for model hover (model → all its keys bright)
+        const match = (isModel && parentMatch) || selfMatch;
+        n.itemStyle = n.itemStyle || {};
+        n.itemStyle.opacity = match ? 1 : 0.15;
+        if (n.children) walk(n.children, depth + 1, isModel && match);
+      });
+    };
+    walk(opt.series[0].data, 0, false);
+    chart.setOption(opt);
+  }
+  function clearDim() {
+    const opt = chart.getOption();
+    const walk = (nodes) => {
+      (nodes || []).forEach(n => {
+        if (n.itemStyle) n.itemStyle.opacity = 1;
+        if (n.children) walk(n.children);
+      });
+    };
+    walk(opt.series[0].data);
+    chart.setOption(opt);
+  }
+
+  // Build custom HTML legend with models + keys
+  const legendEl = document.getElementById('tokenTypeLegend');
+  if (legendEl) {
+    const modelItems = models.map(m =>
+      `<span class="legend-item" data-name="${m}" data-type="model">
+        <span class="legend-dot" style="background:${modelColorMap[m]}"></span>${m}
+      </span>`
+    ).join('');
+    const keyItems = allKeys.map(k =>
+      `<span class="legend-item" data-name="${k}" data-type="key">
+        <span class="legend-dot" style="background:${keyColorMap[k]}"></span>${k}
+      </span>`
+    ).join('');
+    legendEl.innerHTML = `<div class="legend-row">${modelItems}</div><div class="legend-row">${keyItems}</div>`;
+
+    // Legend click handler: toggle visibility via legend selection
+    const hidden = new Set();
+    legendEl.addEventListener('click', (e) => {
+      const item = e.target.closest('.legend-item');
+      if (!item) return;
+      const name = item.dataset.name;
+      const type = item.dataset.type;
+
+      if (hidden.has(name)) {
+        hidden.delete(name);
+        item.classList.remove('dimmed');
+      } else {
+        hidden.add(name);
+        item.classList.add('dimmed');
+      }
+
+      // For sunburst, hide segments by removing from data; show by re-adding
+      // Simple approach: rebuild sunburst data filtering out hidden items
+      const rebuildChildren = (parentModels) => {
+        return parentModels
+          .filter(m => !hidden.has(m.name))
+          .map(m => ({
+            name: m.name,
+            value: m.value,
+            itemStyle: { color: modelColorMap[m.name] },
+            children: m.children
+              ? m.children.filter(c => !hidden.has(c.name))
+              : undefined
+          }));
+      };
+      const opt = chart.getOption();
+      opt.series[0].data = rebuildChildren(sunburstData);
+      chart.clear();
+      chart.setOption(opt);
+    });
+
+    // Legend hover → dim non-relevant items via opacity
+    legendEl.addEventListener('mouseover', (e) => {
+      const item = e.target.closest('.legend-item');
+      if (!item) return;
+      const name = item.dataset.name;
+      if (hidden.has(name)) return;
+      applyDim(name);
+    });
+    legendEl.addEventListener('mouseleave', () => clearDim());
+  }
 }
 
 /* ---- daily token trends ---- */
