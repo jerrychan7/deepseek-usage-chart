@@ -462,6 +462,7 @@ export function renderKeyTokens(amountRows) {
   const tokenRows = amountRows.filter(r => r.type !== 'request_count');
   const byKeyType = groupBy(tokenRows, ['api_key_name', 'type']);
   const keys = [...new Set(tokenRows.map(r => r.api_key_name))].sort();
+  const singleAxis = document.getElementById('keyTokenDualToggle')?.checked;
 
   chart.setOption({ backgroundColor: 'transparent',
     tooltip: {
@@ -470,15 +471,18 @@ export function renderKeyTokens(amountRows) {
       valueFormatter: v => formatNum(v)
     },
     legend: { data: TOKEN_TYPES.map(t => TYPE_LABELS[t]), bottom: 0 },
-    xAxis: { type: 'category', data: keys },
-    yAxis: {
-      type: 'value',
-      name: 'Tokens',
-      axisLabel: { formatter: v => formatNum(v) }
-    },
+    grid: { containLabel: true },
+    xAxis: { type: 'category', data: keys, axisLabel: { interval: 0, rotate: 30 } },
+    yAxis: singleAxis
+      ? { type: 'value', name: 'Tokens', axisLabel: { formatter: v => formatNum(v) } }
+      : [
+          { type: 'value', name: 'Tokens', axisLabel: { formatter: v => formatNum(v) } },
+          { type: 'value', name: '缓存命中', axisLabel: { formatter: v => formatNum(v) }, splitLine: { show: false } }
+        ],
     series: TOKEN_TYPES.map(type => ({
       name: TYPE_LABELS[type],
       type: 'bar',
+      yAxisIndex: singleAxis ? 0 : (type === 'input_cache_hit_tokens' ? 1 : 0),
       data: keys.map(key => {
         const rows = byKeyType.get(`${key}|${type}`) || [];
         return rows.reduce((s, r) => s + parseInt(r.amount || 0), 0);

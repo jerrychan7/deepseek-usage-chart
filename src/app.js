@@ -83,6 +83,16 @@ if (localStorage.getItem('dualAxis') === 'single') {
   dualToggle.checked = true;
 }
 
+/* ---- key token dual-axis toggle ---- */
+const keyTokenDual = document.getElementById('keyTokenDualToggle');
+keyTokenDual.addEventListener('change', () => {
+  localStorage.setItem('keyTokenDual', keyTokenDual.checked ? 'single' : '');
+  if (allAmountRows.length > 0) applyFilter();
+});
+if (localStorage.getItem('keyTokenDual') === 'single') {
+  keyTokenDual.checked = true;
+}
+
 /* ---- DOM refs ---- */
 const dropZone   = document.getElementById('dropZone');
 const errorEl    = document.getElementById('error');
