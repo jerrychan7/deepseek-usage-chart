@@ -42,18 +42,19 @@ export function renderKeyTable(amountRows) {
     return v;
   }
 
-  function rowHtml(label, m, cls, labelCls, currency, costStr, avgCostStr) {
+  function rowHtml(label, m, cls, labelCls, currency, costStr, avgCostStr, isModel) {
+    const hs = isModel ? (key) => ' style="' + heatStyle(m, key) + '"' : () => '';
     return `<tr class="${cls}">` +
       `<td class="${labelCls || ''}">${escapeHtml(label)}</td>` +
-      `<td class="val-cost">${costStr || fmt(m.cost, 'cost', currency)}</td>` +
-      `<td>${fmt(m.requests, 'count')}</td>` +
-      `<td>${fmt(m.output, 'count')}</td>` +
-      `<td>${fmt(m.hit, 'count')}</td>` +
-      `<td>${fmt(m.miss, 'count')}</td>` +
-      `<td>${fmt(m.total, 'count')}</td>` +
-      `<td class="val-rate">${fmt(m.rate, 'rate')}</td>` +
-      `<td>${avgCostStr || fmt(m.avgCost, 'avg_cost', currency)}</td>` +
-      `<td>${fmt(m.avgTokens, 'avg_tokens')}</td>` +
+      `<td class="val-cost"${hs('cost')}>${costStr || fmt(m.cost, 'cost', currency)}</td>` +
+      `<td${hs('requests')}>${fmt(m.requests, 'count')}</td>` +
+      `<td${hs('output')}>${fmt(m.output, 'count')}</td>` +
+      `<td${hs('hit')}>${fmt(m.hit, 'count')}</td>` +
+      `<td${hs('miss')}>${fmt(m.miss, 'count')}</td>` +
+      `<td${hs('total')}>${fmt(m.total, 'count')}</td>` +
+      `<td class="val-rate"${hs('rate')}>${fmt(m.rate, 'rate')}</td>` +
+      `<td${hs('avgCost')}>${avgCostStr || fmt(m.avgCost, 'avg_cost', currency)}</td>` +
+      `<td${hs('avgTokens')}>${fmt(m.avgTokens, 'avg_tokens')}</td>` +
       '</tr>';
   }
 
@@ -84,6 +85,56 @@ export function renderKeyTable(amountRows) {
     return { key, modelRows, sub };
   });
 
+  // Heatmap: per-column value ranges from model rows for cell background gradients.
+  // Light mode (photopic): cones dominant → brand indigo is fine, moderate alpha range.
+  // Dark mode (mesopic/scotopic): rod-dominant, Purkinje shift → use teal (~500nm),
+  // which rods are most sensitive to. Indigo/purple becomes near-black in dim light.
+  // Alpha must also be higher on dark bg for comparable perceived contrast.
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const heatRGB = isDark ? '45,212,191' : '99,102,241';    // teal-400 / indigo-500
+  const alphaMin = isDark ? 0.10 : 0.08;
+  const alphaMax = isDark ? 0.40 : 0.50;
+  const colRanges = (() => {
+    const vals = { cost:[], requests:[], output:[], hit:[], miss:[], total:[], rate:[], avgCost:[], avgTokens:[] };
+    for (const kd of keyData) {
+      for (const mr of kd.modelRows) {
+        const m = mr.m;
+        if (typeof m.cost === 'number') vals.cost.push(m.cost);
+        if (typeof m.requests === 'number') vals.requests.push(m.requests);
+        if (typeof m.output === 'number') vals.output.push(m.output);
+        if (typeof m.hit === 'number') vals.hit.push(m.hit);
+        if (typeof m.miss === 'number') vals.miss.push(m.miss);
+        if (typeof m.total === 'number') vals.total.push(m.total);
+        const r = parseFloat(m.rate); if (!isNaN(r)) vals.rate.push(r);
+        const ac = parseFloat(m.avgCost); if (!isNaN(ac)) vals.avgCost.push(ac);
+        if (typeof m.avgTokens === 'number') vals.avgTokens.push(m.avgTokens);
+      }
+    }
+    const ranges = {};
+    for (const key of Object.keys(vals)) {
+      const a = vals[key];
+      if (a.length < 2) { ranges[key] = null; continue; }
+      const mn = Math.min(...a), mx = Math.max(...a);
+      ranges[key] = { min: mn, max: mx, diff: mx - mn };
+    }
+    return ranges;
+  })();
+  function getHeatVal(m, key) {
+    if (key === 'rate' || key === 'avgCost') return parseFloat(m[key]);
+    return m[key];
+  }
+  function heatStyle(m, key) {
+    const r = colRanges[key];
+    if (!r || r.diff === 0) return '';
+    const val = getHeatVal(m, key);
+    if (typeof val !== 'number' || isNaN(val)) return '';
+    const intensity = Math.max(0, Math.min(1, (val - r.min) / r.diff));
+    // Light mode: log10 scale — stretches low end so small values are also distinguishable
+    const mapped = isDark ? intensity : Math.log10(1 + intensity * 9);
+    const a = alphaMin + mapped * (alphaMax - alphaMin);
+    return 'background:rgba(' + heatRGB + ',' + a.toFixed(3) + ')';
+  }
+
   let bodyHtml = '';
   let grand = { cost:0, requests:0, output:0, hit:0, miss:0, total:0 };
   let grandByCurrency = {};
@@ -111,7 +162,7 @@ export function renderKeyTable(amountRows) {
 
     for (const mr of kd.modelRows) {
       const cur = modelCurrency.get(mr.model);
-      bodyHtml += rowHtml('　' + mr.model, mr.m, 'model-row', 'model-label', cur);
+      bodyHtml += rowHtml('　' + mr.model, mr.m, 'model-row', 'model-label', cur, null, null, true);
     }
     const label = singleKey ? kd.key + ' 总计' : kd.key + ' 小计';
     bodyHtml += rowHtml(label, kd.sub, 'subtotal-row', 'subtotal-label', null, subCostStr, subAvgStr);
