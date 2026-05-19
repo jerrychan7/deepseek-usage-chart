@@ -69,7 +69,11 @@ dropZone.addEventListener('drop', e => {
   if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
 });
 
-window.addEventListener('resize', () => resizeCharts());
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => resizeCharts(), 200);
+});
 
 /* ---- main handler ---- */
 async function handleFile(file) {
