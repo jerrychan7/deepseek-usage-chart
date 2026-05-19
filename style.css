@@ -199,7 +199,22 @@ header p  { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
   font-weight: 600;
   margin-bottom: 12px;
   color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
+.summary-toggle {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+.summary-toggle input { accent-color: var(--key-color); }
+#keyTable.summary-only tbody tr.model-row { display: none; }
 .table-scroll { overflow-x: auto; }
 #keyTable {
   width: 100%;

@@ -29,6 +29,18 @@ function toggleTheme() {
 themeToggle.addEventListener('click', toggleTheme);
 applyTheme(getTheme());
 
+/* ---- summary-only toggle ---- */
+const summaryCheck = document.getElementById('summaryOnly');
+summaryCheck.addEventListener('change', () => {
+  document.getElementById('keyTable').classList.toggle('summary-only', summaryCheck.checked);
+  localStorage.setItem('summaryOnly', summaryCheck.checked ? '1' : '');
+});
+// restore persisted state
+if (localStorage.getItem('summaryOnly') === '1') {
+  summaryCheck.checked = true;
+  // class will be applied on next table render
+}
+
 /* ---- DOM refs ---- */
 const dropZone   = document.getElementById('dropZone');
 const errorEl    = document.getElementById('error');

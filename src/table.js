@@ -212,7 +212,9 @@ export function renderKeyTable(amountRows) {
     bodyHtml += rowHtml('总计', grand, 'total-row', '', null, grandCostStr, grandAvgStr);
   }
 
-  document.getElementById('keyTable').querySelector('thead').innerHTML =
+  const table = document.getElementById('keyTable');
+  table.querySelector('thead').innerHTML =
     '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
-  document.getElementById('keyTable').querySelector('tbody').innerHTML = bodyHtml;
+  table.querySelector('tbody').innerHTML = bodyHtml;
+  table.classList.toggle('summary-only', document.getElementById('summaryOnly').checked);
 }
