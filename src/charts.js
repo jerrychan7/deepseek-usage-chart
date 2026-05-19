@@ -281,10 +281,23 @@ export function renderDailyTokens(amountRows) {
 
   const singleAxis = document.getElementById('dualAxisToggle')?.checked;
 
+  function rateLine(hit, miss) {
+    return (hit + miss) > 0 ? (hit / (hit + miss) * 100).toFixed(1) + '%' : '-';
+  }
+
   chart.setOption({ backgroundColor: 'transparent',
     tooltip: {
       trigger: 'axis',
-      valueFormatter: v => formatNum(v)
+      valueFormatter: v => formatNum(v),
+      formatter: (ps) => {
+        let hit = 0, miss = 0, lines = '';
+        ps.forEach(p => {
+          lines += p.marker + ' ' + p.seriesName + '：' + formatNum(p.value) + '<br/>';
+          if (p.seriesName === TYPE_LABELS['input_cache_hit_tokens']) hit = p.value;
+          if (p.seriesName === TYPE_LABELS['input_cache_miss_tokens']) miss = p.value;
+        });
+        return '<strong>' + ps[0].axisValue + '</strong><br/>' + lines + '<br/>缓存命中率：' + rateLine(hit, miss);
+      }
     },
     legend: { data: TOKEN_TYPES.map(t => TYPE_LABELS[t]), bottom: 0 },
     grid: { containLabel: true },
@@ -468,7 +481,17 @@ export function renderKeyTokens(amountRows) {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      valueFormatter: v => formatNum(v)
+      valueFormatter: v => formatNum(v),
+      formatter: (ps) => {
+        let hit = 0, miss = 0, lines = '';
+        ps.forEach(p => {
+          lines += p.marker + ' ' + p.seriesName + '：' + formatNum(p.value) + '<br/>';
+          if (p.seriesName === TYPE_LABELS['input_cache_hit_tokens']) hit = p.value;
+          if (p.seriesName === TYPE_LABELS['input_cache_miss_tokens']) miss = p.value;
+        });
+        const r = (hit + miss) > 0 ? (hit / (hit + miss) * 100).toFixed(1) + '%' : '-';
+        return '<strong>' + ps[0].axisValue + '</strong><br/>' + lines + '<br/>缓存命中率：' + r;
+      }
     },
     legend: { data: TOKEN_TYPES.map(t => TYPE_LABELS[t]), bottom: 0 },
     grid: { containLabel: true },
