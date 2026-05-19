@@ -299,33 +299,72 @@ export function renderKeyCost(amountRows) {
   if (!chart) return;
 
   const byKeyModel = groupBy(amountRows, ['api_key_name', 'model']);
-  const keys = [...new Set(amountRows.map(r => r.api_key_name))].sort();
   const models = [...new Set(amountRows.map(r => r.model))].sort().reverse();
   const colorMap = {};
   models.forEach((m, i) => colorMap[m] = MODEL_COLORS[i % MODEL_COLORS.length]);
 
-  chart.setOption({ backgroundColor: 'transparent',
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-      valueFormatter: v => v > 0 && v < 0.01 ? '<' + currencySymbol + '0.01' : currencySymbol + v.toFixed(2)
-    },
-    legend: { data: models, bottom: 0 },
-    xAxis: { type: 'category', data: keys },
-    yAxis: { type: 'value', name: currencyCode + ' (' + currencySymbol + ')' },
-    series: models.map((model, i) => ({
+  // Build sorted data items, each with key name, per-model costs, and total
+  const items = [...new Set(amountRows.map(r => r.api_key_name))].map(key => ({
+    key,
+    costs: models.map(m => computeCost(byKeyModel.get(`${key}|${m}`) || [])),
+    get total() { return this.costs.reduce((s, v) => s + v, 0); }
+  }));
+
+  function render(orderBy) {
+    const sorted = [...items].sort(orderBy);
+    chart.setOption({ backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        valueFormatter: v => v > 0 && v < 0.01 ? '<' + currencySymbol + '0.01' : currencySymbol + v.toFixed(2)
+      },
+      legend: { data: models, bottom: 0 },
+      grid: { containLabel: true },
+      xAxis: { type: 'value', name: currencyCode + ' (' + currencySymbol + ')' },
+      yAxis: { type: 'category', data: sorted.map(d => d.key), inverse: false },
+      series: models.map((model, mi) => ({
+        name: model,
+        type: 'bar',
+        stack: 'total',
+        data: sorted.map(d => d.costs[mi]),
+        itemStyle: { color: colorMap[model], borderRadius: 0 },
+        emphasis: { focus: 'series' }
+      }))
+    });
+  }
+
+  // Default: sort ascending (yAxis inverse:false → first item at bottom, so asc = big at top)
+  render((a, b) => a.total - b.total);
+
+  // Legend click: toggle visibility + re-sort by visible models' totals
+  chart.on('legendselectchanged', (params) => {
+    const selected = params.selected;
+    const visible = models.filter(m => selected[m] !== false);
+    const visibleIndices = visible.map(m => models.indexOf(m));
+
+    // Sort ascending so largest visible total is at top
+    const sortFn = (a, b) => {
+      const sa = visibleIndices.reduce((s, mi) => s + a.costs[mi], 0);
+      const sb = visibleIndices.reduce((s, mi) => s + b.costs[mi], 0);
+      return sa - sb;
+    };
+
+    const sorted = [...items].sort(sortFn);
+
+    const series = models.map((model, mi) => ({
       name: model,
       type: 'bar',
       stack: 'total',
-      data: keys.map(key => {
-        const rows = byKeyModel.get(`${key}|${model}`) || [];
-        return computeCost(rows);
-      }),
-      itemStyle: { color: colorMap[model], borderRadius: i === models.length - 1 ? [4, 4, 0, 0] : 0 },
+      data: sorted.map(d => d.costs[mi]),
+      itemStyle: { color: colorMap[model] },
       emphasis: { focus: 'series' }
-    }))
+    }));
+
+    chart.setOption({
+      yAxis: { data: sorted.map(d => d.key) },
+      series
+    });
   });
-  applyStackBorderRadius(chart);
 }
 
 /* ---- token usage by API key (grouped bar by token type) ---- */
