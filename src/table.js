@@ -42,8 +42,8 @@ export function renderKeyTable(amountRows) {
     return v;
   }
 
-  function rowHtml(label, m, cls, labelCls, currency, costStr, avgCostStr, isModel) {
-    const hs = isModel ? (key) => ' style="' + heatStyle(m, key) + '"' : () => '';
+  function rowHtml(label, m, cls, labelCls, currency, costStr, avgCostStr, heatMode) {
+    const hs = heatMode ? (key) => ' style="' + heatStyle(m, key, heatMode) + '"' : () => '';
     return `<tr class="${cls}">` +
       `<td class="${labelCls || ''}">${escapeHtml(label)}</td>` +
       `<td class="val-cost"${hs('cost')}>${costStr || fmt(m.cost, 'cost', currency)}</td>` +
@@ -94,6 +94,9 @@ export function renderKeyTable(amountRows) {
   const heatRGB = isDark ? '45,212,191' : '99,102,241';    // teal-400 / indigo-500
   const alphaMin = isDark ? 0.10 : 0.08;
   const alphaMax = isDark ? 0.40 : 0.50;
+  // Subtotal text color interpolated in OKLCH: green (high) ↔ red (low)
+  const textGreen = isDark ? '#34d399' : '#059669';
+  const textRed   = isDark ? '#f87171' : '#dc2626';
   const colRanges = (() => {
     const vals = { cost:[], requests:[], output:[], hit:[], miss:[], total:[], rate:[], avgCost:[], avgTokens:[] };
     for (const kd of keyData) {
@@ -123,7 +126,7 @@ export function renderKeyTable(amountRows) {
     if (key === 'rate' || key === 'avgCost') return parseFloat(m[key]);
     return m[key];
   }
-  function heatStyle(m, key) {
+  function heatStyle(m, key, mode) {
     const r = colRanges[key];
     if (!r || r.diff === 0) return '';
     const val = getHeatVal(m, key);
@@ -131,6 +134,12 @@ export function renderKeyTable(amountRows) {
     const intensity = Math.max(0, Math.min(1, (val - r.min) / r.diff));
     // Light mode: log10 scale — stretches low end so small values are also distinguishable
     const mapped = isDark ? intensity : Math.log10(1 + intensity * 9);
+    if (mode === 'text') {
+      // rate: 高=绿(好) 低=红(差)；其余列：高=红(大) 低=绿(小)
+      const p = key === 'rate' ? mapped : 1 - mapped;
+      const pct = Math.round(p * 100);
+      return 'color:color-mix(in oklch, ' + textGreen + ' ' + pct + '%, ' + textRed + ')';
+    }
     const a = alphaMin + mapped * (alphaMax - alphaMin);
     return 'background:rgba(' + heatRGB + ',' + a.toFixed(3) + ')';
   }
@@ -162,10 +171,10 @@ export function renderKeyTable(amountRows) {
 
     for (const mr of kd.modelRows) {
       const cur = modelCurrency.get(mr.model);
-      bodyHtml += rowHtml('　' + mr.model, mr.m, 'model-row', 'model-label', cur, null, null, true);
+      bodyHtml += rowHtml('　' + mr.model, mr.m, 'model-row', 'model-label', cur, null, null, 'bg');
     }
     const label = singleKey ? kd.key + ' 总计' : kd.key + ' 小计';
-    bodyHtml += rowHtml(label, kd.sub, 'subtotal-row', 'subtotal-label', null, subCostStr, subAvgStr);
+    bodyHtml += rowHtml(label, kd.sub, 'subtotal-row', 'subtotal-label', null, subCostStr, subAvgStr, 'text');
     grand.cost     += kd.sub.cost;
     grand.requests += kd.sub.requests;
     grand.output   += kd.sub.output;
