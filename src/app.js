@@ -1,7 +1,7 @@
 import { parseCSV } from './utils.js';
 import { setCurrency, setData, clearData, resetFilters, setFilterState, snapshotFilterState, allAmountRows } from './state.js';
 import { setAllChartsTheme, clearCharts, resizeCharts } from './charts.js';
-import { applyFilter, setSaveFilterState } from './render.js';
+import { applyFilter, setSaveFilterState, syncCostView } from './render.js';
 import { renderFilter, renderModelFilter, renderDateFilter } from './filters.js';
 
 /* ---- theme ---- */
@@ -40,6 +40,16 @@ if (localStorage.getItem('summaryOnly') === '1') {
   summaryCheck.checked = true;
   // class will be applied on next table render
 }
+
+/* ---- cost view toggle ---- */
+const costToggle = document.getElementById('costViewToggle');
+costToggle.addEventListener('change', () => {
+  localStorage.setItem('costView', costToggle.checked ? 'bar' : '');
+  syncCostView();
+});
+if (localStorage.getItem('costView') === '') {
+  costToggle.checked = false; // previously sunburst
+} // otherwise: bar by default
 
 /* ---- DOM refs ---- */
 const dropZone   = document.getElementById('dropZone');

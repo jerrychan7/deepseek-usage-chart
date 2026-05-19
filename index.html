@@ -69,8 +69,15 @@
         <div class="chart-wrap"><div id="dailyCostChart"></div></div>
       </div>
       <div class="chart-card">
-        <h2>费用分布</h2>
-        <div class="chart-wrap"><div id="tokenTypeChart"></div></div>
+        <h2>
+          费用分布
+          <label class="chart-toggle">
+            <input type="checkbox" id="costViewToggle" checked>
+            堆叠对比
+          </label>
+        </h2>
+        <div class="chart-wrap" id="sunburstWrap"><div id="tokenTypeChart"></div></div>
+        <div class="chart-wrap" id="keyCostWrap"><div id="keyCostChart"></div></div>
         <div class="chart-legend" id="tokenTypeLegend"></div>
       </div>
       <div class="chart-card">
@@ -80,10 +87,6 @@
       <div class="chart-card">
         <h2>API Key Token 用量</h2>
         <div class="chart-wrap"><div id="keyTokenChart"></div></div>
-      </div>
-      <div class="chart-card chart-full">
-        <h2>API Key 费用对比</h2>
-        <div class="chart-wrap"><div id="keyCostChart"></div></div>
       </div>
     </div>
   </div>

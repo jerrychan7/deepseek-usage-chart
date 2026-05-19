@@ -12,6 +12,13 @@ export function resizeCharts() {
   charts.forEach(c => c.resize());
 }
 
+export function resizeChart(domId) {
+  const dom = document.getElementById(domId);
+  if (!dom) return;
+  const chart = window.echarts.getInstanceByDom(dom);
+  if (chart) chart.resize();
+}
+
 function getTheme() {
   const stored = localStorage.getItem('theme');
   if (stored) return stored;
