@@ -401,6 +401,59 @@ export function renderKeyCost(amountRows) {
   });
 }
 
+/* ---- cost by API key (normalized — each bar fills to 100%) ---- */
+export function renderKeyCostNormalized(amountRows) {
+  const chart = createChart('keyCostNormChart');
+  if (!chart) return;
+
+  const byKeyModel = groupBy(amountRows, ['api_key_name', 'model']);
+  const models = [...new Set(amountRows.map(r => r.model))].sort().reverse();
+  const colorMap = {};
+  models.forEach((m, i) => colorMap[m] = MODEL_COLORS[i % MODEL_COLORS.length]);
+
+  const keys = [...new Set(amountRows.map(r => r.api_key_name))];
+  const items = keys.map(key => {
+    const costs = models.map(m => computeCost(byKeyModel.get(`${key}|${m}`) || []));
+    const total = costs.reduce((s, v) => s + v, 0);
+    const pcts = total > 0 ? costs.map(c => +(c / total * 100).toFixed(1)) : costs;
+    return { key, costs, pcts, total };
+  });
+
+  function fmt(v) { return v > 0 && v < 0.01 ? '<' + currencySymbol + '0.01' : currencySymbol + v.toFixed(2); }
+
+  chart.setOption({ backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: (ps) => {
+        let totalCost = 0;
+        let lines = '';
+        ps.forEach(p => {
+          if (p.value > 0) {
+            const actual = p.data.actual;
+            totalCost += actual;
+            lines += p.marker + ' ' + p.seriesName + '：' + fmt(actual) + '（' + p.value + '%）<br/>';
+          }
+        });
+        return '<strong>' + ps[0].axisValue + '</strong><br/>' + lines + '<br/><strong>总计：' + fmt(totalCost) + '</strong>';
+      }
+    },
+    legend: { data: models, bottom: 0 },
+    grid: { containLabel: true },
+    xAxis: { type: 'value', max: 100, name: '%' },
+    yAxis: { type: 'category', data: items.map(d => d.key) },
+    series: models.map((model, mi) => ({
+      name: model,
+      type: 'bar',
+      stack: 'total',
+      data: items.map(d => ({ value: d.pcts[mi], actual: d.costs[mi] })),
+      label: { show: true, position: 'inside', formatter: p => p.value > 0 ? p.value + '%' : '' },
+      itemStyle: { color: colorMap[model] },
+      emphasis: { focus: 'series' }
+    }))
+  });
+}
+
 /* ---- token usage by API key (grouped bar by token type) ---- */
 export function renderKeyTokens(amountRows) {
   const chart = createChart('keyTokenChart');

@@ -72,12 +72,17 @@
         <h2>
           费用分布
           <label class="chart-toggle">
-            <input type="checkbox" id="costViewToggle" checked>
-            堆叠对比
+            <input type="checkbox" id="costSunburstCb">
+            旭日图
+          </label>
+          <label class="chart-toggle" id="normalizedToggle" style="display:none">
+            <input type="checkbox" id="costNormalizedCb">
+            归一化
           </label>
         </h2>
         <div class="chart-wrap" id="sunburstWrap"><div id="tokenTypeChart"></div></div>
-        <div class="chart-wrap" id="keyCostWrap"><div id="keyCostChart"></div></div>
+        <div class="chart-wrap" id="keyCostWrap" style="display:none"><div id="keyCostChart"></div></div>
+        <div class="chart-wrap" id="keyCostNormWrap" style="display:none"><div id="keyCostNormChart"></div></div>
         <div class="chart-legend" id="tokenTypeLegend"></div>
       </div>
       <div class="chart-card">

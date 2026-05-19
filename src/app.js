@@ -42,14 +42,36 @@ if (localStorage.getItem('summaryOnly') === '1') {
 }
 
 /* ---- cost view toggle ---- */
-const costToggle = document.getElementById('costViewToggle');
-costToggle.addEventListener('change', () => {
-  localStorage.setItem('costView', costToggle.checked ? 'bar' : '');
+const sunburstCb = document.getElementById('costSunburstCb');
+const normalizedCb = document.getElementById('costNormalizedCb');
+const normalizedToggle = document.getElementById('normalizedToggle');
+
+function updateCostView() {
+  const isSunburst = sunburstCb.checked;
+  const isNormalized = normalizedCb.checked;
+  // Show/hide normalized checkbox based on sunburst state
+  normalizedToggle.style.display = isSunburst ? 'none' : '';
+  // Persist
+  localStorage.setItem('costSunburst', isSunburst ? '1' : '');
+  localStorage.setItem('costNormalized', isNormalized ? '1' : '');
   syncCostView();
-});
-if (localStorage.getItem('costView') === '') {
-  costToggle.checked = false; // previously sunburst
-} // otherwise: bar by default
+}
+
+sunburstCb.addEventListener('change', updateCostView);
+normalizedCb.addEventListener('change', updateCostView);
+
+// Restore persisted state
+const savedSunburst = localStorage.getItem('costSunburst');
+if (savedSunburst === '1') {
+  sunburstCb.checked = true;
+} else if (savedSunburst === '') {
+  sunburstCb.checked = false;
+}
+if (localStorage.getItem('costNormalized') === '1') {
+  normalizedCb.checked = true;
+}
+// Sync toggle visibility (no charts to resize on first load)
+normalizedToggle.style.display = sunburstCb.checked ? 'none' : '';
 
 /* ---- dual-axis toggle ---- */
 const dualToggle = document.getElementById('dualAxisToggle');
