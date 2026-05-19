@@ -332,7 +332,25 @@ export function renderKeyCost(amountRows) {
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
-        valueFormatter: v => v > 0 && v < 0.01 ? '<' + currencySymbol + '0.01' : currencySymbol + v.toFixed(2)
+        valueFormatter: v => v > 0 && v < 0.01 ? '<' + currencySymbol + '0.01' : currencySymbol + v.toFixed(2),
+        formatter: (params) => {
+          let total = 0, count = 0;
+          let lines = '';
+          params.forEach(p => {
+            if (p.value > 0) {
+              total += p.value;
+              count++;
+              const val = p.value > 0 && p.value < 0.01 ? '<' + currencySymbol + '0.01' : currencySymbol + p.value.toFixed(2);
+              lines += p.marker + ' ' + p.seriesName + '：' + val + '<br/>';
+            }
+          });
+          let html = '<strong>' + params[0].axisValue + '</strong><br/>' + lines;
+          if (count > 1) {
+            const totalStr = total > 0 && total < 0.01 ? '<' + currencySymbol + '0.01' : currencySymbol + total.toFixed(2);
+            html += '<br/><strong>总计：' + totalStr + '</strong>';
+          }
+          return html;
+        }
       },
       legend: { data: models, bottom: 0 },
       grid: { containLabel: true },
