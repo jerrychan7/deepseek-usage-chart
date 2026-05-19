@@ -39,12 +39,17 @@ export let activeModels = new Set();
 export let dateMin = '';
 export let dateMax = '';
 
+export function setDateMin(v) { dateMin = v; }
+export function setDateMax(v) { dateMax = v; }
+
 export function resetFilters() {
   activeKeys = new Set();
   activeModels = new Set();
   dateMin = '';
   dateMax = '';
 }
+
+export function setDateRange(dMin, dMax) { dateMin = dMin; dateMax = dMax; }
 
 export function setFilterState(keys, models, dMin, dMax) {
   activeKeys = new Set(keys);

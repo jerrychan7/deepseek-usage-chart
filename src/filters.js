@@ -1,5 +1,5 @@
 import { escapeHtml } from './utils.js';
-import { allAmountRows, allCostRows, activeKeys, activeModels, dateMin, dateMax } from './state.js';
+import { allAmountRows, allCostRows, activeKeys, activeModels, dateMin, dateMax, setDateMin, setDateMax } from './state.js';
 import { applyFilter } from './render.js';
 
 function filterRows(rows) {
@@ -139,13 +139,11 @@ export function renderDateFilter() {
   document.getElementById('dateMax').value = dateMax;
 
   document.getElementById('dateMin').onchange = e => {
-    // eslint-disable-next-line no-import-assign
-    dateMin = e.target.value;
+    setDateMin(e.target.value);
     applyFilter();
   };
   document.getElementById('dateMax').onchange = e => {
-    // eslint-disable-next-line no-import-assign
-    dateMax = e.target.value;
+    setDateMax(e.target.value);
     applyFilter();
   };
 }
