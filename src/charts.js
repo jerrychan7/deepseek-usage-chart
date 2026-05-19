@@ -272,25 +272,34 @@ export function renderDailyTokens(amountRows) {
   const byDateType = groupBy(tokenRows, ['utc_date', 'type']);
   const dates = [...new Set(tokenRows.map(r => r.utc_date))].sort();
 
+  function getDaily(type) {
+    return dates.map(d => {
+      const rows = byDateType.get(`${d}|${type}`) || [];
+      return rows.reduce((s, r) => s + parseInt(r.amount || 0), 0);
+    });
+  }
+
+  const singleAxis = document.getElementById('dualAxisToggle')?.checked;
+
   chart.setOption({ backgroundColor: 'transparent',
     tooltip: {
       trigger: 'axis',
       valueFormatter: v => formatNum(v)
     },
     legend: { data: TOKEN_TYPES.map(t => TYPE_LABELS[t]), bottom: 0 },
+    grid: { containLabel: true },
     xAxis: { type: 'category', data: dates },
-    yAxis: {
-      type: 'value',
-      name: 'Tokens',
-      axisLabel: { formatter: v => formatNum(v) }
-    },
+    yAxis: singleAxis
+      ? { type: 'value', name: 'Tokens', axisLabel: { formatter: v => formatNum(v) } }
+      : [
+          { type: 'value', name: 'Tokens', axisLabel: { formatter: v => formatNum(v) } },
+          { type: 'value', name: '缓存命中', axisLabel: { formatter: v => formatNum(v) }, splitLine: { show: false } }
+        ],
     series: TOKEN_TYPES.map(type => ({
       name: TYPE_LABELS[type],
       type: 'line',
-      data: dates.map(d => {
-        const rows = byDateType.get(`${d}|${type}`) || [];
-        return rows.reduce((s, r) => s + parseInt(r.amount || 0), 0);
-      }),
+      yAxisIndex: singleAxis ? 0 : (type === 'input_cache_hit_tokens' ? 1 : 0),
+      data: getDaily(type),
       itemStyle: { color: TYPE_COLORS[type] },
       lineStyle: { color: TYPE_COLORS[type], width: 2 },
       symbol: 'circle',

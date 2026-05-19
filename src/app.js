@@ -51,6 +51,16 @@ if (localStorage.getItem('costView') === '') {
   costToggle.checked = false; // previously sunburst
 } // otherwise: bar by default
 
+/* ---- dual-axis toggle ---- */
+const dualToggle = document.getElementById('dualAxisToggle');
+dualToggle.addEventListener('change', () => {
+  localStorage.setItem('dualAxis', dualToggle.checked ? 'single' : '');
+  if (allAmountRows.length > 0) applyFilter();
+});
+if (localStorage.getItem('dualAxis') === 'single') {
+  dualToggle.checked = true;
+}
+
 /* ---- DOM refs ---- */
 const dropZone   = document.getElementById('dropZone');
 const errorEl    = document.getElementById('error');
