@@ -14,13 +14,14 @@ A simple, self-contained HTML page that visualizes your monthly DeepSeek API usa
 ## Features
 
 - **Upload a ZIP** — directly load the ZIP you downloaded from DeepSeek, no need to extract it first
-- **Summary cards** — total cost, cache hit rate, output/input token counts at a glance
+- **Key / model / date filters** — toggle individual API keys and models, set date range
+- **Detail table** — per-key per-model breakdown with summary-only mode, heatmap-style background gradients (column-wise normalization), and green-to-red subtotal text gradient
 - **Daily cost chart** — stacked bar chart showing cost breakdown by model per day
-- **Token distribution** — doughnut chart of output vs. cache-hit vs. cache-miss tokens
-- **Daily token trends** — line chart tracking each token type over time
-- **Per-API-key breakdown** — cost comparison and token usage for each API key name
-- **Key filter** — toggle individual API keys on/off to focus on specific ones
-- **100% local** — all parsing and chart rendering happens in your browser
+- **Cost distribution** — sunburst chart of cost by model and API key; toggle to switch between sunburst, stacked bar, and normalized percentage view (with animated re-sort on legend click)
+- **Daily token trends** — line chart tracking each token type over time; dual-axis mode prevents cache-hit from overwhelming the scale
+- **API Key token usage** — grouped bar chart per API key; dual-axis support
+- **Light / dark theme** — toggle in the header, respects system preference on first visit
+- **100% local** — all parsing and chart rendering happens in your browser; nothing is uploaded
 
 ## Privacy
 
@@ -44,13 +45,14 @@ Your usage data never leaves your computer. The page has no analytics, no tracki
 ## 功能
 
 - **上传 ZIP** — 直接加载从 DeepSeek 下载的 ZIP 文件，无需提前解压
-- **概览卡片** — 总费用、缓存命中率、输入/输出 Token 数量一目了然
+- **Key / 模型 / 日期筛选** — 可切换显示/隐藏特定 API Key 和模型，设置日期范围
+- **明细数据表** — 按 Key 和模型的详细数据，支持仅汇总模式，支持热力图背景色梯度（按列归一化）
 - **每日费用图表** — 堆叠柱状图，按模型展示每日费用明细
-- **Token 分布** — 环形图展示输出、缓存命中、缓存未命中 Token 的比例
-- **每日 Token 趋势** — 折线图追踪各类 Token 的时间趋势
-- **按 API Key 统计** — 每个 API Key 的费用对比和 Token 用量
-- **Key 筛选** — 可切换显示/隐藏特定 API Key，聚焦关注的数据
-- **完全本地** — 所有解析和图表渲染都在你的浏览器中完成
+- **费用分布** — 旭日图展示费用按模型和 Key 的分布；支持切换为堆叠柱状图和归一化百分比视图
+- **每日 Token 趋势** — 折线图追踪各类 Token 按日变化；支持双轴模式避免缓存命中挤压其他指标
+- **API Key Token 用量** — 按 API Key 的分组柱状图；支持双轴切换
+- **亮色 / 暗色主题** — 页面右上角切换，首次访问自动跟随系统设置
+- **完全本地** — 所有解析和图表渲染都在你的浏览器中完成，数据不上传
 
 ## 隐私
 

@@ -57,12 +57,9 @@ Note: `price` is empty for `request_count` rows since they are not billed separa
 1. User uploads ZIP → `JSZip` extracts the two CSV files in memory.
 2. `parseCSV()` (utils.js) converts CSV text into arrays of row objects.
 3. Data stored in `state.js`, currency extracted from `currency` field.
-4. Filters initialized (key, model, date range) and `applyFilter()` triggers all renders:
-   - **cost.csv** → daily cost stacked bar chart (charts.js).
-   - **amount.csv** → all other charts: token doughnut, daily token lines, per-key cost & token bars (charts.js).
-   - **amount.csv** → detail table with per-key model breakdown (table.js).
+4. Filters initialized (key, model, date range) and `applyFilter()` triggers all renders.
 5. Uploaded ZIP cached as base64 in localStorage; restores on next page load.
-6. Charts re-render on theme toggle, window resize, and filter changes.
+6. Charts re-render on theme toggle, window resize (debounced 200ms), and filter changes.
 
 ## Source files
 
@@ -72,11 +69,11 @@ Note: `price` is empty for `request_count` rows since they are not billed separa
 | `style.css` | All styles, light/dark theme variables |
 | `src/utils.js` | Constants (colors, labels), pure functions: `parseCSV`, `formatNum`, `groupBy`, `computeCost`, `escapeHtml` |
 | `src/state.js` | Shared mutable state: currency, raw data arrays, filter state, derived filter functions |
-| `src/render.js` | `applyFilter()` orchestrator — calls all chart and table renderers, triggers resize and filter-state save |
+| `src/render.js` | `applyFilter()` orchestrator — calls all chart and table renderers, triggers resize; `syncCostView()` manages cost view visibility |
 | `src/filters.js` | Key chip filter, model chip filter, date range filter — renders UI and wires DOM events |
-| `src/charts.js` | All ECharts instances: `renderDailyCost`, `renderTokenType`, `renderDailyTokens`, `renderKeyCost`, `renderKeyTokens`, plus chart lifecycle helpers |
-| `src/table.js` | `renderKeyTable` — detail table with per-currency subtotals, model-to-currency lookup, `fmCurrencyCost` breakdown |
-| `src/app.js` | Entry point: theme toggle, file upload/drop handlers, ZIP parse, localStorage cache, init on DOM ready |
+| `src/charts.js` | All ECharts instances: `renderDailyCost`, `renderTokenType`, `renderDailyTokens` (dual-axis), `renderKeyCost` (horizontal stacked, legend-sort), `renderKeyCostNormalized` (100% stacked), `renderKeyTokens` (dual-axis). Helpers: `clearCharts`, `resizeCharts`, `resizeChart`, `setAllChartsTheme`, `applyStackBorderRadius` |
+| `src/table.js` | `renderKeyTable` — detail table with heatmap backgrounds, per-column log-scale normalization, subtotal text color-mix (green↔red via OKLCH), summary-only toggle, per-currency formatting |
+| `src/app.js` | Entry point: theme toggle, file upload/drop handlers, ZIP parse, localStorage cache, all toggle event listeners (summary-only, cost view, dual-axis, key token dual-axis), init on DOM ready |
 
 ### Module dependency graph
 
@@ -94,3 +91,12 @@ filters.js  state.js   table.js
 - `filters.js` imports from `utils.js`, `state.js`, `render.js`.
 - `render.js` imports from `state.js`, `charts.js`, `table.js`.
 - `app.js` imports from `utils.js`, `state.js`, `charts.js`, `render.js`, `filters.js`.
+
+## Design notes
+
+- **Heatmap**: Model row cells get `background: rgba(indigo, α)` where α is normalized per-column (log10 scale in light mode). Dark mode uses teal (better rod-cell sensitivity, Purkinje shift).
+- **Subtotal text gradient**: Uses `color-mix(in oklch, green, red)` for perceptually uniform green↔red interpolation per column value. High=cost→red, low=cost→green; cache-hit-rate is inverted (high=good→green).
+- **Dual-axis token charts**: Cache hit tokens on a separate y-axis to avoid dominating the scale. Toggle merges to single axis.
+- **Cost view toggle**: Three views in one card — sunburst, stacked bar, normalized bar. `syncCostView()` manages DOM visibility and chart resize.
+- **Re-sort on legend click**: Horizontal stacked bar re-sorts by visible models' totals via `legendselectchanged` event. Bars animate via ECharts' built-in data transition (matched by `id`).
+- **Debounced resize**: `resize` events debounced at 200ms, `chart-wrap` has `overflow: hidden` to prevent flash before resize.
